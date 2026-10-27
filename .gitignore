@@ -1,5 +1,11 @@
 # Ignorar la carpeta de dependencias
 node_modules/
+/client/node_modules/
+/server/node_modules/
 
 # Ignorar archivo de variables de entorno con datos sensibles
 .env
+.env.local
+
+dist/
+build/
