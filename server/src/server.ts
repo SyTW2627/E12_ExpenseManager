@@ -1,10 +1,8 @@
-import express, { Request, Response } from 'express';
-import dotenv from 'dotenv';
+import 'dotenv/config'
+import express from 'express';
 import cors from 'cors';
 
-// Cargar las variables de entorno (el archivo .env) 
-// Falta por configurar el archivo .env con las variables necesarias para la conexión a la base de datos 
-dotenv.config();
+import './config/mongoose.js'
 
 // Inicializar la aplicación de Express
 const app = express();
@@ -13,7 +11,7 @@ app.use(cors()); // Permite que el frontend  se comunique con este backend
 app.use(express.json()); // Permite leer los datos que vengan en formato JSON
 
 // Ruta de prueba (cambiar)
-app.get('/', (req: Request, res: Response) => {
+app.get('/', (req, res) => {
   res.send('El servidor está corriendo correctamente.');
 });
 
