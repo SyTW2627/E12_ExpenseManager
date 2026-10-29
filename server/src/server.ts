@@ -3,12 +3,15 @@ import express from 'express';
 import cors from 'cors';
 
 import './db/mongoose.js'
+import authRoutes from './routes/authRoutes.js';
 
 // Inicializar la aplicación de Express
 const app = express();
 
 app.use(cors()); // Permite que el frontend  se comunique con este backend
 app.use(express.json()); // Permite leer los datos que vengan en formato JSON
+
+app.use('/api/auth', authRoutes);
 
 // Ruta de prueba (cambiar)
 app.get('/', (req, res) => {
