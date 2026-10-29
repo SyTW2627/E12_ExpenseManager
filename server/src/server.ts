@@ -2,7 +2,7 @@ import 'dotenv/config'
 import express from 'express';
 import cors from 'cors';
 
-import './config/mongoose.js'
+import './db/mongoose.js'
 
 // Inicializar la aplicación de Express
 const app = express();
