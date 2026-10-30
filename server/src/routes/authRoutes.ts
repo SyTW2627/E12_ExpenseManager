@@ -1,9 +1,7 @@
-import { Router } from 'express';
+import express from 'express';
 import { registerUser } from '../controllers/authController.js';
 
-const router = Router();
+export const AuthRouter = express.Router();
 
 // Ruta pública para registrar un nuevo usuario
-router.post('/register', registerUser);
-
-export default router;
+AuthRouter.post('/register', registerUser);

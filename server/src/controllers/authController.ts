@@ -1,7 +1,7 @@
-import type { Request, Response } from 'express';
-import { User } from '../models/user.js'; // Ajusta la ruta si tu archivo user.ts está en otra carpeta (ej. '../db/user')
+import express from 'express';
+import { User } from '../models/user.js';
 
-export const registerUser = async (req: Request, res: Response): Promise<void> => {
+export const registerUser = async (req: express.Request, res: express.Response) => {
   try {
     const { name, email, password } = req.body;
 
