@@ -74,3 +74,50 @@ export const registerUser = async (req: express.Request, res: express.Response) 
     res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 };
+
+
+export const loginUser = async (req: express.Request, res: express.Response): Promise<void> => {
+  try {
+    const { email, password } = req.body ;
+
+    // 1. Validate required fields
+    if (
+      typeof email !== 'string' || !email.trim() ||
+      typeof password !== 'string' || !password
+    ) {
+      res.status(400).json({
+        message: 'Correo electrónico y contraseña son obligatorios'
+      });
+      return;
+    }
+
+    // 2. Find the user by email
+    const user = await User.findOne({
+      email: email.trim().toLowerCase()
+    });
+
+    // 3. Verify user existence and password
+    if (!user || !(await user.comparePassword(password))) {
+      res.status(401).json({
+        message: 'Credenciales incorrectas'
+      });
+      return;
+    }
+
+    // TODO: JWT  will be implemented here later
+
+    // 4. Successful login
+    res.status(200).json({
+    message: 'Credenciales verificadas correctamente',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error en el login:', error);
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+  }
+};
