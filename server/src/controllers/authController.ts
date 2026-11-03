@@ -1,7 +1,14 @@
 import express from 'express';
 import { User } from '../models/user.js';
-// Later implementation of JWT
-// import jwt from 'jsonwebtoken'
+import jwt from 'jsonwebtoken'
+
+const generateToken = (userId: unknown): string => {
+  return jwt.sign(
+    { id: userId },
+    process.env.JWT_SECRET as string,
+    { expiresIn: '7d' }
+  );
+};
 
 export const registerUser = async (req: express.Request, res: express.Response) => {
   try {
@@ -47,8 +54,6 @@ export const registerUser = async (req: express.Request, res: express.Response) 
       return;
     }
 
-    // Podriamos cifrar la contraseña mediante hash
-
     // 7. Crear el usuario
     const newUser = new User({
       name: normalizedName,
@@ -59,9 +64,13 @@ export const registerUser = async (req: express.Request, res: express.Response) 
     // 8. Guardar en la base de datos
     await newUser.save();
 
-    // 9. Mensaje para depuracion
+    // Generar el token JWT
+    const token = generateToken(newUser._id);
+
+    // 9. Respuesta al cliente
     res.status(201).json({
       message: 'Usuario registrado correctamente',
+      token,
       user: {
         id: newUser._id,
         name: newUser.name,
@@ -76,7 +85,7 @@ export const registerUser = async (req: express.Request, res: express.Response) 
 };
 
 
-export const loginUser = async (req: express.Request, res: express.Response): Promise<void> => {
+export const loginUser = async (req: express.Request, res: express.Response) => {
   try {
     const { email, password } = req.body ;
 
@@ -104,11 +113,12 @@ export const loginUser = async (req: express.Request, res: express.Response): Pr
       return;
     }
 
-    // TODO: JWT  will be implemented here later
+    const token = generateToken(user._id);
 
     // 4. Successful login
     res.status(200).json({
-    message: 'Credenciales verificadas correctamente',
+      message: 'Credenciales verificadas correctamente',
+      token,
       user: {
         id: user.id,
         name: user.name,
