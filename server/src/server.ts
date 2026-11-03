@@ -3,8 +3,10 @@ import express from 'express';
 import cors from 'cors';
 
 import './db/mongoose.js'
-import { authRouter } from './routes/authRoutes.js';
+import { authRouter } from './routes/authRouter.js';
 import { userRouter } from './routes/userRouter.js';
+import { groupRouter } from './routes/groupRouter.js';
+import { paymentRouter } from './routes/paymentRouter.js';
 
 // Inicializar la aplicación de Express
 const app = express();
@@ -13,7 +15,9 @@ app.use(cors()); // Permite que el frontend  se comunique con este backend
 app.use(express.json()); // Permite leer los datos que vengan en formato JSON
 
 app.use('/api/auth', authRouter);
-app.use('/api/users', userRouter);
+app.use('/api', userRouter);
+app.use('/api', groupRouter);
+app.use('/api', paymentRouter);
 
 // Ruta de prueba (cambiar)
 app.get('/', (req, res) => {
