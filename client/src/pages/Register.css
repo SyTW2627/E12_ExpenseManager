@@ -1,0 +1,16 @@
+/* Registration shares the login shell, illustrations, and input styles. */
+.register-form-wrap { padding-top: 32px; padding-bottom: 34px; }
+.register-form-wrap h1 { margin-top: 18px; }
+.register-form { margin-top: 27px; }
+.register-form .form-field + .form-field { margin-top: 17px; }
+.register-form .input-shell { height: 50px; }
+.register-form .form-field label { margin-bottom: 8px; }
+.register-hint { margin: 7px 0 0; display: flex; align-items: center; gap: 6px; font-size: 11px; line-height: 1.4; color: #858da4; }
+.register-hint svg { color: #25a686; }
+.register-error-hint { margin: 8px 0 0; font-size: 11px; color: #ba4d64; }
+.input-shell--invalid { border-color: #da869a; box-shadow: 0 0 0 3px rgba(212, 80, 105, .08); }
+.register-submit { margin-top: 24px; }
+.register-signin-prompt { margin-top: 20px; }
+.form-notice--error { color: #a4324c; background: #fff1f3; border-color: #ffd3dc; }
+@media (max-width: 850px) { .register-form-wrap { padding-top: 54px; padding-bottom: 40px; } }
+@media (max-width: 450px) { .register-form-wrap { padding-top: 44px; padding-bottom: 26px; } .register-form { margin-top: 23px; } }
