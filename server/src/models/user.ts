@@ -1,5 +1,6 @@
 import { Schema, model, Document } from 'mongoose';
 import bcrypt from 'bcrypt';
+import validator from 'validator';
 
 interface UserDocumentInterface extends Document {
   name: string;
@@ -22,6 +23,11 @@ const UserSchema = new Schema<UserDocumentInterface>({
     unique: true,
     lowercase: true,
     trim: true,
+    validate(value: string) {
+      if (!validator.default.isEmail(value)) {
+        throw new Error('Email is invalid');
+      }
+    }
   },
   password: {
     type: String,
