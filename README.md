@@ -10,11 +10,12 @@ Se trata de una aplicación web full-stack orientada a la gestión, reparto e in
 
 ### Instrucciones para su funcionamiento
 
-- `cllient`
+- `client`:
+
+1. Instalar las dependencias con `npm install`
+2. Arrancar el servidor con el comando `npm run dev -- --host 0.0.0.0 `
 
 - `server` :
 
 1. Instalar las dependencias con `npm install`
 2. Arrancar el servidor con el comando `npm run dev`
-
-
