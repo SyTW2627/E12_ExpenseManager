@@ -1,14 +1,51 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { Brand, Icon, VisualPanel } from './AuthVisual'
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
   const [notice, setNotice] = useState('')
+  const [error, setError] = useState('')
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const resetFeedback = () => {
+    setNotice('')
+    setError('')
+  }
+
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
-    // esto evitara que la pagina se recargue hasta que se conecte la api
-    setNotice('La conexión con el servidor se añadirá en una tarea posterior. Esta pantalla es solo visual.')
+    setLoading(true)
+    setError('')
+    setNotice('')
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Credenciales incorrectas')
+      }
+
+      // Guardamos el token y datos del usuario
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify(data.user))
+
+      setNotice('¡Inicio de sesión exitoso! Redirigiendo...')
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 1000)
+    } catch (err: any) {
+      setError(err.message || 'Error de conexión con el servidor')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -27,7 +64,16 @@ export default function Login() {
               <label htmlFor="login-email">Correo electrónico</label>
               <div className="input-shell">
                 <Icon name="mail" size={19} />
-                <input id="login-email" type="email" name="email" placeholder="tu@email.com" autoComplete="email" required onChange={() => notice && setNotice('')} />
+                <input
+                  id="login-email"
+                  type="email"
+                  name="email"
+                  placeholder="tu@email.com"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); resetFeedback(); }}
+                />
               </div>
             </div>
 
@@ -35,7 +81,16 @@ export default function Login() {
               <div className="label-row"><label htmlFor="login-password">Contraseña</label></div>
               <div className="input-shell">
                 <Icon name="lock" size={19} />
-                <input id="login-password" type={showPassword ? 'text' : 'password'} name="password" placeholder="Introduce tu contraseña" autoComplete="current-password" required onChange={() => notice && setNotice('')} />
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  placeholder="Introduce tu contraseña"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); resetFeedback(); }}
+                />
                 {/* alternar entre texto de contrasena oculto y visible */}
                 <button className="password-toggle" type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={showPassword}>
                   <Icon name={showPassword ? 'eye-off' : 'eye'} size={19} />
@@ -47,7 +102,10 @@ export default function Login() {
               <button className="subtle-link" type="button" onClick={() => setNotice('La recuperación de contraseña se añadirá más adelante.')}>¿Has olvidado tu contraseña?</button>
             </div>
 
-            <button className="login-submit" type="submit">Entrar a mi cuenta <Icon name="arrow" size={19} /></button>
+            <button className="login-submit" type="submit" disabled={loading}>
+              {loading ? 'Iniciando sesión...' : <>Entrar a mi cuenta <Icon name="arrow" size={19} /></>}
+            </button>
+            {error && <p className="form-notice form-notice--error" role="alert">{error}</p>}
             {notice && <p className="form-notice" role="status"><Icon name="chart" size={18} />{notice}</p>}
           </form>
 

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { Brand, Icon, VisualPanel } from './AuthVisual'
 import './Register.css'
 
@@ -10,6 +10,7 @@ export default function Register() {
   const [confirmation, setConfirmation] = useState('')
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const resetFeedback = () => {
     // elimina los mensajes anteriores cuando el usuario empieza a corregir el formulario
@@ -17,10 +18,11 @@ export default function Register() {
     setError('')
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = event.currentTarget
     const name = (form.elements.namedItem('name') as HTMLInputElement).value
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value
 
     // comprobacion del nombre que se va a enviar desde el frontend
     if (!name.trim()) {
@@ -36,9 +38,36 @@ export default function Register() {
       return
     }
 
-    // mensaje provisional porque no hay backend eliminar
+    setLoading(true)
     setError('')
-    setNotice('Formulario validado. El registro se conectará con el servidor más adelante; todavía no se ha creado ninguna cuenta.')
+    setNotice('')
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Error al crear la cuenta')
+      }
+
+      // Guardamos el token y usuario devueltos por el backend
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify(data.user))
+
+      setNotice('¡Cuenta creada con éxito! Redirigiendo...')
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 1500)
+    } catch (err: any) {
+      setError(err.message || 'Error de conexión con el servidor')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // aviso de diferencia mientras se escribe la confirmacion
@@ -100,7 +129,9 @@ export default function Register() {
               {passwordsDiffer && <p className="register-error-hint" id="register-password-error">Las contraseñas no coinciden.</p>}
             </div>
 
-            <button className="login-submit register-submit" type="submit">Crear mi cuenta <Icon name="arrow" size={19} /></button>
+            <button className="login-submit register-submit" type="submit" disabled={loading}>
+              {loading ? 'Creando cuenta...' : <>Crear mi cuenta <Icon name="arrow" size={19} /></>}
+            </button>
             {error && <p className="form-notice form-notice--error" role="alert">{error}</p>}
             {notice && <p className="form-notice" role="status"><Icon name="chart" size={18} />{notice}</p>}
           </form>
