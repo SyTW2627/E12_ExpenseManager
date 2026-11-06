@@ -107,6 +107,7 @@
 .login-submit:hover { transform: translateY(-1px); box-shadow: 0 16px 29px rgba(111, 90, 222, .3); filter: brightness(1.03); }
 .login-submit:active { transform: translateY(0); }
 .form-notice { display: flex; align-items: flex-start; gap: 9px; margin: 15px 0 0; background: #efedff; border: 1px solid #e0dbff; color: #5b529d; border-radius: 9px; padding: 12px; line-height: 1.5; font-size: 12px; }
+.form-notice--error { color: #a4324c; background: #fff1f3; border-color: #ffd3dc; }
 .form-notice svg { flex: none; }
 .signup-prompt { margin-top: 27px; text-align: center; font-size: 12px; color: #9298a9; }
 .signup-prompt .subtle-link { margin-left: 3px; }

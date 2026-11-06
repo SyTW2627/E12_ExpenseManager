@@ -1,14 +1,32 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type SubmitEvent } from 'react'
 import { Brand, Icon, VisualPanel } from './AuthVisual'
+import { useAppDispatch, useAppSelector } from '../store'
+import { loginUser, clearFeedback } from '../store/slices/authSlice'
 
+// Vista de login que únicamente lee datos y emite eventos
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
-  const [notice, setNotice] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const dispatch = useAppDispatch()
+  const { loading, error, notice } = useAppSelector((state) => state.auth)
+
+  const handleInputChange = () => {
+    if (error || notice) {
+      dispatch(clearFeedback())
+    }
+  }
+
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
-    // esto evitara que la pagina se recargue hasta que se conecte la api
-    setNotice('La conexión con el servidor se añadirá en una tarea posterior. Esta pantalla es solo visual.')
+    const result = await dispatch(loginUser({ email, password }))
+
+    if (loginUser.fulfilled.match(result)) {
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 1000)
+    }
   }
 
   return (
@@ -27,7 +45,19 @@ export default function Login() {
               <label htmlFor="login-email">Correo electrónico</label>
               <div className="input-shell">
                 <Icon name="mail" size={19} />
-                <input id="login-email" type="email" name="email" placeholder="tu@email.com" autoComplete="email" required onChange={() => notice && setNotice('')} />
+                <input
+                  id="login-email"
+                  type="email"
+                  name="email"
+                  placeholder="tu@email.com"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    handleInputChange()
+                  }}
+                />
               </div>
             </div>
 
@@ -35,26 +65,58 @@ export default function Login() {
               <div className="label-row"><label htmlFor="login-password">Contraseña</label></div>
               <div className="input-shell">
                 <Icon name="lock" size={19} />
-                <input id="login-password" type={showPassword ? 'text' : 'password'} name="password" placeholder="Introduce tu contraseña" autoComplete="current-password" required onChange={() => notice && setNotice('')} />
-                {/* alternar entre texto de contrasena oculto y visible */}
-                <button className="password-toggle" type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={showPassword}>
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  placeholder="Introduce tu contraseña"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    handleInputChange()
+                  }}
+                />
+                <button
+                  className="password-toggle"
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-pressed={showPassword}
+                >
                   <Icon name={showPassword ? 'eye-off' : 'eye'} size={19} />
                 </button>
               </div>
             </div>
 
             <div className="form-actions">
-              <button className="subtle-link" type="button" onClick={() => setNotice('La recuperación de contraseña se añadirá más adelante.')}>¿Has olvidado tu contraseña?</button>
+              <button
+                className="subtle-link"
+                type="button"
+                onClick={() => alert('La recuperación de contraseña se añadirá próximamente.')}
+              >
+                ¿Has olvidado tu contraseña?
+              </button>
             </div>
 
-            <button className="login-submit" type="submit">Entrar a mi cuenta <Icon name="arrow" size={19} /></button>
+            <button className="login-submit" type="submit" disabled={loading}>
+              {loading ? 'Iniciando sesión...' : 'Entrar a mi cuenta'} <Icon name="arrow" size={19} />
+            </button>
+
+            {error && <p className="form-notice form-notice--error" role="alert">{error}</p>}
             {notice && <p className="form-notice" role="status"><Icon name="chart" size={18} />{notice}</p>}
           </form>
 
-          <div className="signup-prompt">¿Todavía no tienes cuenta? <a className="subtle-link" href="/register">Crear una cuenta</a></div>
+          <div className="signup-prompt">
+            ¿Todavía no tienes cuenta? <a className="subtle-link" href="/register">Crear una cuenta</a>
+          </div>
         </div>
 
-        <footer className="login-form-footer"><span>© 2026 Cuentas Claras</span><span>Haz que cada plan cuente <span aria-hidden="true">✳</span></span></footer>
+        <footer className="login-form-footer">
+          <span>© 2026 Cuentas Claras</span>
+          <span>Haz que cada plan cuente <span aria-hidden="true">✳</span></span>
+        </footer>
       </section>
     </main>
   )
