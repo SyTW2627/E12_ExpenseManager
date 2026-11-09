@@ -18,15 +18,21 @@ export default function Login() {
     }
   }
 
-  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const result = await dispatch(loginUser({ email, password }))
-
-    if (loginUser.fulfilled.match(result)) {
-      setTimeout(() => {
-        window.location.href = '/'
-      }, 1000)
-    }
+    // Quitar el comentario de la siguiente línea para habilitar el login real
+    // void dispatch(loginUser({ email, password }))
+    // Quitar el codigo de abajo (simula un login existoso) cuando se habilite el login real
+    dispatch(loginUser.fulfilled(
+      {
+        user: {
+          name: 'Usuario de prueba',
+          email: email
+        }
+      },
+      'test-login',
+      { email, password }
+    ))  
   }
 
   return (
