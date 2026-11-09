@@ -1,9 +1,17 @@
 import { Brand, Icon } from './AuthVisual'
 import { useAppDispatch, useAppSelector } from '../store'
 import { logout } from '../store/slices/authSlice'
+import Groups from './Groups'
 import './Dashboard.css'
 
-export default function Dashboard() {
+type Section = 'home' | 'groups'
+
+interface DashboardProps {
+  section: Section
+  onNavigate: (section: Section) => void
+}
+
+export default function Dashboard({ section, onNavigate }: DashboardProps) {
   const dispatch = useAppDispatch()
   const user = useAppSelector((state) => state.auth.user)
   const firstName = user?.name?.trim().split(/\s+/)[0] || 'usuario'
@@ -16,12 +24,22 @@ export default function Dashboard() {
         </div>
 
         <nav className="dashboard-nav" aria-label="Secciones">
-          <span className="dashboard-nav__link dashboard-nav__link--active" aria-current="page">
+          <a
+            href="/dashboard"
+            className={`dashboard-nav__link${section === 'home' ? ' dashboard-nav__link--active' : ''}`}
+            aria-current={section === 'home' ? 'page' : undefined}
+            onClick={(event) => { event.preventDefault(); onNavigate('home') }}
+          >
             <Icon name="chart" size={19} /> Inicio
-          </span>
-          <button className="dashboard-nav__link dashboard-nav__link--disabled" type="button" disabled>
+          </a>
+          <a
+            href="/grupos"
+            className={`dashboard-nav__link${section === 'groups' ? ' dashboard-nav__link--active' : ''}`}
+            aria-current={section === 'groups' ? 'page' : undefined}
+            onClick={(event) => { event.preventDefault(); onNavigate('groups') }}
+          >
             <Icon name="users" size={19} /> Mis grupos
-          </button>
+          </a>
         </nav>
 
         <button className="dashboard-logout" type="button" onClick={() => dispatch(logout())}>
@@ -29,9 +47,13 @@ export default function Dashboard() {
         </button>
       </aside>
 
-      <section className="dashboard-content" aria-label="Inicio">
-        <h1>Hola, {firstName}</h1>
-      </section>
+      {section === 'groups' ? (
+        <Groups />
+      ) : (
+        <section className="dashboard-content" aria-label="Inicio">
+          <h1>Hola, {firstName}</h1>
+        </section>
+      )}
     </main>
   )
 }

@@ -37,14 +37,18 @@
   text-align: left;
   font-size: 14px;
   font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
 }
+.dashboard-nav__link:hover { background: #1d2643; color: #fff; }
+.dashboard-nav__link:focus-visible { outline: 2px solid #ac9cff; outline-offset: 2px; }
 .dashboard-nav__link--active {
   background: #222b49;
   box-shadow: inset 3px 0 #8972f5;
   color: #fff;
 }
 .dashboard-nav__link--active svg { color: #ac9cff; }
-.dashboard-nav__link--disabled { opacity: .75; cursor: not-allowed; }
 
 .dashboard-logout {
   min-height: 42px;
