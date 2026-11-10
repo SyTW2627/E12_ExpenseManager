@@ -1,18 +1,8 @@
 import express from 'express';
 import { User } from '../models/user.js'; 
+import type { AuthRequest } from '../middlewares/authMiddleware.js';
 
 export const userRouter = express.Router();
-
-userRouter.post('/users', async (req, res) => {
-  const user = new User(req.body);
-
-  try {
-    await user.save();
-    res.status(201).send(user);
-  } catch (error) {
-    res.status(400).send(error);
-  }
-});
 
 userRouter.get('/users', async (req, res) => {
   const filter = req.query.name
@@ -22,7 +12,7 @@ userRouter.get('/users', async (req, res) => {
     : {};
 
   try {
-    const users = await User.find(filter);
+    const users = await User.find(filter).select('-password');
     res.status(200).send(users);
   } catch (error) {
     res.status(500).send(error);
@@ -31,7 +21,7 @@ userRouter.get('/users', async (req, res) => {
 
 userRouter.get('/users/:id', async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).select('-password');
     if (!user) {
       return res.status(404).send({ message: 'Usuario no encontrado' });
     }
@@ -41,8 +31,16 @@ userRouter.get('/users/:id', async (req, res) => {
   }
 });
 
-userRouter.patch('/users/:id', async (req, res) => {
-  const allowedUpdates = ['name', 'email', 'trustScore']; // Para no permitir que se actualicen campos no deseados, como la contraseña o el ID del usuario.
+userRouter.patch('/users/:id', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+
+  // Un usuario solo puede modificar su propio perfil
+  if (req.params.id !== userId) {
+    return res.status(403).send({ message: 'No tienes permiso para modificar el perfil de otro usuario' });
+  }
+
+  // trustScore se elimina de las actualizaciones permitidas para que solo el sistema pueda modificarlo
+  const allowedUpdates = ['name', 'email'];
   const updates = Object.keys(req.body);
   const isValidOperation = updates.every((update) => allowedUpdates.includes(update));
 
@@ -54,7 +52,7 @@ userRouter.patch('/users/:id', async (req, res) => {
     const user = await User.findByIdAndUpdate(req.params.id, req.body, { 
       new: true, 
       runValidators: true 
-    });
+    }).select('-password');
     
     if (!user) {
       return res.status(404).send({ message: 'Usuario no encontrado' });
@@ -65,7 +63,14 @@ userRouter.patch('/users/:id', async (req, res) => {
   }
 });
 
-userRouter.delete('/users/:id', async (req, res) => {
+userRouter.delete('/users/:id', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+
+  // Un usuario solo puede eliminar su propia cuenta
+  if (req.params.id !== userId) {
+    return res.status(403).send({ message: 'Solo puedes eliminar tu propia cuenta' });
+  }
+
   try {
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) {

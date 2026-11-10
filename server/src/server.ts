@@ -8,6 +8,9 @@ import { userRouter } from './routes/userRouter.js';
 import { groupRouter } from './routes/groupRouter.js';
 import { paymentRouter } from './routes/paymentRouter.js';
 
+// middleware de seguridad
+import { verifyToken } from './middlewares/authMiddleware.js';
+
 // Inicializar la aplicación de Express
 const app = express();
 
@@ -15,9 +18,11 @@ app.use(cors()); // Permite que el frontend  se comunique con este backend
 app.use(express.json()); // Permite leer los datos que vengan en formato JSON
 
 app.use('/api/auth', authRouter);
-app.use('/api', userRouter);
-app.use('/api', groupRouter);
-app.use('/api', paymentRouter);
+
+// Rutas protegidas por el middleware de seguridad
+app.use('/api', verifyToken, userRouter);
+app.use('/api', verifyToken, groupRouter);
+app.use('/api', verifyToken, paymentRouter);
 
 // Ruta de prueba (cambiar)
 app.get('/', (req, res) => {
