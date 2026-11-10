@@ -1,51 +1,38 @@
 import { useState, type SubmitEvent } from 'react'
 import { Brand, Icon, VisualPanel } from './AuthVisual'
+import { useAppDispatch, useAppSelector } from '../store'
+import { loginUser, clearFeedback } from '../store/slices/authSlice'
 
+// Vista de login que únicamente lee datos y emite eventos
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [notice, setNotice] = useState('')
-  const [error, setError] = useState('')
 
-  const resetFeedback = () => {
-    setNotice('')
-    setError('')
-  }
+  const dispatch = useAppDispatch()
+  const { loading, error, notice } = useAppSelector((state) => state.auth)
 
-  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setLoading(true)
-    setError('')
-    setNotice('')
-
-    try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Credenciales incorrectas')
-      }
-
-      // Guardamos el token y datos del usuario
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-
-      setNotice('¡Inicio de sesión exitoso! Redirigiendo...')
-      setTimeout(() => {
-        window.location.href = '/'
-      }, 1000)
-    } catch (err: any) {
-      setError(err.message || 'Error de conexión con el servidor')
-    } finally {
-      setLoading(false)
+  const handleInputChange = () => {
+    if (error || notice) {
+      dispatch(clearFeedback())
     }
+  }
+  
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    // Quitar el comentario de la siguiente línea para habilitar el login real
+    void dispatch(loginUser({ email, password }))
+    // Quitar el comentario de la siguiente línea para el login simulado
+    /*dispatch(loginUser.fulfilled(
+      {
+        user: {
+          name: 'Usuario de prueba',
+          email: email
+        }
+      },
+      'test-login',
+      { email, password }
+    )) */
   }
 
   return (
@@ -72,7 +59,10 @@ export default function Login() {
                   autoComplete="email"
                   required
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); resetFeedback(); }}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    handleInputChange()
+                  }}
                 />
               </div>
             </div>
@@ -89,30 +79,50 @@ export default function Login() {
                   autoComplete="current-password"
                   required
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); resetFeedback(); }}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    handleInputChange()
+                  }}
                 />
-                {/* alternar entre texto de contrasena oculto y visible */}
-                <button className="password-toggle" type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={showPassword}>
+                <button
+                  className="password-toggle"
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-pressed={showPassword}
+                >
                   <Icon name={showPassword ? 'eye-off' : 'eye'} size={19} />
                 </button>
               </div>
             </div>
 
             <div className="form-actions">
-              <button className="subtle-link" type="button" onClick={() => setNotice('La recuperación de contraseña se añadirá más adelante.')}>¿Has olvidado tu contraseña?</button>
+              <button
+                className="subtle-link"
+                type="button"
+                onClick={() => alert('La recuperación de contraseña se añadirá próximamente.')}
+              >
+                ¿Has olvidado tu contraseña?
+              </button>
             </div>
 
             <button className="login-submit" type="submit" disabled={loading}>
-              {loading ? 'Iniciando sesión...' : <>Entrar a mi cuenta <Icon name="arrow" size={19} /></>}
+              {loading ? 'Iniciando sesión...' : 'Entrar a mi cuenta'} <Icon name="arrow" size={19} />
             </button>
+
             {error && <p className="form-notice form-notice--error" role="alert">{error}</p>}
             {notice && <p className="form-notice" role="status"><Icon name="chart" size={18} />{notice}</p>}
           </form>
 
-          <div className="signup-prompt">¿Todavía no tienes cuenta? <a className="subtle-link" href="/register">Crear una cuenta</a></div>
+          <div className="signup-prompt">
+            ¿Todavía no tienes cuenta? <a className="subtle-link" href="/register">Crear una cuenta</a>
+          </div>
         </div>
 
-        <footer className="login-form-footer"><span>© 2026 Cuentas Claras</span><span>Haz que cada plan cuente <span aria-hidden="true">✳</span></span></footer>
+        <footer className="login-form-footer">
+          <span>© 2026 Cuentas Claras</span>
+          <span>Haz que cada plan cuente <span aria-hidden="true">✳</span></span>
+        </footer>
       </section>
     </main>
   )

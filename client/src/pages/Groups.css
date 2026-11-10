@@ -1,0 +1,33 @@
+.groups-empty {
+  margin-top: 32px;
+  padding: clamp(26px, 5vw, 44px);
+  max-width: 560px;
+  border: 1px solid #e3e6f0;
+  border-radius: 18px;
+  background: #fff;
+  text-align: center;
+}
+
+.groups-empty__icon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #f0edff;
+  color: #7661d7;
+}
+
+.groups-empty h2 {
+  margin: 0 0 8px;
+  font-size: 19px;
+  color: #1a2340;
+}
+
+.groups-empty p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #69738d;
+}
