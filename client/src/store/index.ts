@@ -1,13 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { useDispatch, useSelector, type TypedUseSelectorHook } from 'react-redux';
 import authReducer from './slices/authSlice';
-
-// Almacén único de la aplicación
-// Contiene el estado global accesible por cualquier componente
+import groupsReducer from './slices/groupsSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
+    groups: groupsReducer,
   },
 });
 

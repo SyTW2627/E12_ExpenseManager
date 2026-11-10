@@ -17,13 +17,13 @@ export default function Login() {
       dispatch(clearFeedback())
     }
   }
-
+  
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     // Quitar el comentario de la siguiente línea para habilitar el login real
-    // void dispatch(loginUser({ email, password }))
-    // Quitar el codigo de abajo (simula un login existoso) cuando se habilite el login real
-    dispatch(loginUser.fulfilled(
+    void dispatch(loginUser({ email, password }))
+    // Quitar el comentario de la siguiente línea para el login simulado
+    /*dispatch(loginUser.fulfilled(
       {
         user: {
           name: 'Usuario de prueba',
@@ -32,7 +32,7 @@ export default function Login() {
       },
       'test-login',
       { email, password }
-    ))  
+    )) */
   }
 
   return (
