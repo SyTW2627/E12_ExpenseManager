@@ -6,6 +6,7 @@ interface UserDocumentInterface extends Document {
   name: string;
   email: string;
   password: string;
+  trustScore: number;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -33,6 +34,12 @@ const UserSchema = new Schema<UserDocumentInterface>({
     type: String,
     required: [true, "La contraseña es obligatoria"],
     minlength: [6, "La contraseña debe contener al menos 6 caracteres"],
+  },
+  trustScore: {
+    type: Number,
+    default: 100,
+    min: [0, "El nivel de confianza no puede ser menor que 0"],
+    max: [100, "El nivel de confianza no puede ser mayor que 100"],
   },
 }, { timestamps: true, }); // Creación automática de createdAt y updatedAt
 
