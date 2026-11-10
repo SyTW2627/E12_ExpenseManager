@@ -28,7 +28,7 @@ export const fetchMyGroups = createAsyncThunk<Group[], string, { rejectValue: st
   'groups/fetchMyGroups',
   async (token, { rejectWithValue }) => {
     try {
-      const response = await fetch('http://localhost:5000/api/groups/me', {
+      const response = await fetch('http://localhost:5000/api/groups', {
         headers: { Authorization: `Bearer ${token}` },
       })
 
