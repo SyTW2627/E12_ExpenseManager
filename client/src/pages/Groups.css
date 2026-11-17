@@ -31,3 +31,57 @@
   line-height: 1.6;
   color: #69738d;
 }
+
+.groups-join {
+  margin-top: 28px;
+  max-width: 560px;
+  padding: 20px 22px;
+  border: 1px solid #e3e6f0;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.groups-join label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a2340;
+}
+
+.groups-join__row { display: flex; gap: 10px; }
+
+.groups-join input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #d6dae6;
+  border-radius: 10px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #1a2340;
+}
+.groups-join input:focus { outline: 2px solid #ac9cff; outline-offset: 1px; border-color: #8972f5; }
+
+.groups-join button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 10px;
+  background: #7661d7;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.groups-join button:hover:not(:disabled) { background: #6450c4; }
+.groups-join button:disabled { opacity: .55; cursor: not-allowed; }
+
+.groups-join__feedback { margin: 10px 0 0; font-size: 13px; }
+.groups-join__feedback--error { color: #c0392b; }
+.groups-join__feedback--success { color: #1e8e5a; }
+
+@media (max-width: 420px) {
+  .groups-join__row { flex-direction: column; }
+}
