@@ -1,21 +1,63 @@
-import { useEffect } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Icon } from './AuthVisual'
 import { useAppDispatch, useAppSelector } from '../store'
-import { fetchMyGroups } from '../store/slices/groupsSlice'
+import { clearJoinStatus, fetchMyGroups, joinGroup } from '../store/slices/groupsSlice'
 import './Groups.css'
 
 export default function Groups() {
   const dispatch = useAppDispatch()
   const token = useAppSelector((state) => state.auth.token)
-  const { items: groups, loading, error } = useAppSelector((state) => state.groups)
+  const { items: groups, loading, error, joining, joinError, joinMessage } = useAppSelector(
+    (state) => state.groups
+  )
+  const [inviteCode, setInviteCode] = useState('')
 
   useEffect(() => {
     if (token) void dispatch(fetchMyGroups(token))
+    return () => { dispatch(clearJoinStatus()) }
   }, [dispatch, token])
+
+  const handleJoin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const code = inviteCode.trim()
+    if (!token || !code) return
+    const result = await dispatch(joinGroup({ token, inviteCode: code }))
+    if (joinGroup.fulfilled.match(result)) setInviteCode('')
+  }
 
   return (
     <section className="dashboard-content" aria-labelledby="groups-title">
       <h1 id="groups-title">Mis grupos</h1>
+
+      {token && (
+        <form className="groups-join" onSubmit={handleJoin}>
+          <label htmlFor="invite-code">Unirse a un grupo</label>
+          <div className="groups-join__row">
+            <input
+              id="invite-code"
+              type="text"
+              placeholder="Código de invitación"
+              value={inviteCode}
+              onChange={(event) => {
+                setInviteCode(event.target.value.toUpperCase())
+                if (joinError || joinMessage) dispatch(clearJoinStatus())
+              }}
+              autoComplete="off"
+              spellCheck={false}
+              disabled={joining}
+            />
+            <button type="submit" disabled={joining || !inviteCode.trim()}>
+              {joining ? 'Uniéndote...' : 'Unirse'}
+            </button>
+          </div>
+          {joinError && (
+            <p className="groups-join__feedback groups-join__feedback--error" role="alert">{joinError}</p>
+          )}
+          {joinMessage && (
+            <p className="groups-join__feedback groups-join__feedback--success" role="status">{joinMessage}</p>
+          )}
+        </form>
+      )}
 
       {!token ? (
         <p className="groups-message" role="alert">Inicia sesión para consultar tus grupos.</p>
