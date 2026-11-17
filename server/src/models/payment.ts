@@ -34,7 +34,7 @@ const PaymentSchema = new Schema<PaymentDocumentInterface>({
   status: {
     type: String,
     enum: ['pending', 'completed'],
-    default: 'completed', // Completo por defecto, ya que se asume que el pago se realiza inmediatamente.
+    default: 'pending', // Pendiente hasta que el receptor confirme que lo ha recibido.
   },
 }, { timestamps: true });
 

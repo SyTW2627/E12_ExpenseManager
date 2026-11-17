@@ -32,6 +32,51 @@ groupRouter.post('/groups', async (req: AuthRequest, res) => {
   }
 });
 
+/**
+ * Funcion para unirse a un grupo mediante un código de invitación.
+ */
+groupRouter.post('/groups/join', async (req: AuthRequest, res) => {
+  try {
+    const { inviteCode } = req.body;
+    
+    // Extraemos el ID del usuario  del middleware
+    const userId = req.user?.id;
+    if (!inviteCode) {
+      return res.status(400).send({ message: 'El código de invitación es obligatorio' });
+    }
+
+    // Buscamos el grupo utilizando el código de invitación 
+    const group = await Group.findOne({ 
+      inviteCode: inviteCode.trim().toUpperCase() 
+    });
+    if (!group) {
+      return res.status(404).send({ message: 'Código de invitación inválido o grupo no encontrado' });
+    }
+
+    // Comprobar si el usuario ya está en el array de miembros
+    const isAlreadyMember = group.members.some(memberId => memberId.toString() === userId);
+    if (isAlreadyMember) {
+      return res.status(400).send({ message: 'Ya eres miembro de este grupo' });
+    }
+
+    // Añadir el ID del usuario y guardar 
+    group.members.push(userId as any);
+    await group.save();
+
+    // Se pueblan los campos igual que en GET /groups para que el cliente reciba el mismo formato
+    await group.populate('members', 'name email');
+    await group.populate('createdBy', 'name email');
+
+    res.status(200).send({
+      message: 'Te has unido al grupo correctamente', 
+      group 
+    });
+
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
 groupRouter.get('/groups', async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id; 

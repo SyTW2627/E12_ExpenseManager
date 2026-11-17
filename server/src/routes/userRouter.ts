@@ -4,16 +4,41 @@ import type { AuthRequest } from '../middlewares/authMiddleware.js';
 
 export const userRouter = express.Router();
 
-userRouter.get('/users', async (req, res) => {
-  const filter = req.query.name
-    ? { name: req.query.name.toString() }
-    : req.query.email
-    ? { email: req.query.email.toString() }
-    : {};
-
+userRouter.get('/users', async (req: AuthRequest, res) => {
   try {
-    const users = await User.find(filter).select('-password');
+    const { name, email } = req.query;
+
+    if (!name && !email) {
+      return res.status(400).send({
+        message: "Se debe proporcionar al menos un parámetro de búsqueda: ?name=... o ?email=..."
+      });
+    }
+
+    const userId = req.user?.id;
+
+    const filter: Record<string, unknown> = {
+      _id: { $ne: userId }
+    };
+
+    if (name) { filter.name = { $regex: name.toString(), $options: 'i' }; }
+    if (email) { filter.email = { $regex: email.toString(), $options: 'i' }; } 
+
+    const users = await User.find(filter).select('name email trustScore');
+
     res.status(200).send(users);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+userRouter.get('/users/me', async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+    const user = await User.findById(userId).select('-password');
+    if (!user) {
+      return res.status(404).send({ message: 'Usuario no encontrado' });
+    }
+    res.status(200).send(user);
   } catch (error) {
     res.status(500).send(error);
   }
@@ -39,7 +64,6 @@ userRouter.patch('/users/:id', async (req: AuthRequest, res) => {
     return res.status(403).send({ message: 'No tienes permiso para modificar el perfil de otro usuario' });
   }
 
-  // trustScore se elimina de las actualizaciones permitidas para que solo el sistema pueda modificarlo
   const allowedUpdates = ['name', 'email'];
   const updates = Object.keys(req.body);
   const isValidOperation = updates.every((update) => allowedUpdates.includes(update));

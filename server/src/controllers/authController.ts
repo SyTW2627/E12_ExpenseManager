@@ -76,7 +76,8 @@ export const registerUser = async (req: express.Request, res: express.Response) 
       user: {
         id: newUser._id,
         name: newUser.name,
-        email: newUser.email
+        email: newUser.email,
+        trustScore: newUser.trustScore
       }
     });
 
@@ -130,7 +131,8 @@ export const loginUser = async (req: express.Request, res: express.Response) => 
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        trustScore: user.trustScore
       }
     });
 
