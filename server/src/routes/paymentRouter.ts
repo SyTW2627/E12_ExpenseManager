@@ -1,5 +1,7 @@
 import express from 'express';
+import { isValidObjectId } from 'mongoose';
 import { Payment } from '../models/payment.js';
+import { Group } from '../models/group.js';
 import type { AuthRequest } from '../middlewares/authMiddleware.js';
 
 export const paymentRouter = express.Router();
@@ -8,9 +10,38 @@ paymentRouter.post('/payments', async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id;
 
+    // Solo se aceptan estos campos del body; payerId y status los decide el servidor
+    const { groupId, receiverId, amount } = req.body;
+
+    if (!isValidObjectId(groupId) || !isValidObjectId(receiverId)) {
+      return res.status(400).send({ message: 'groupId y receiverId deben ser identificadores válidos' });
+    }
+
+    if (receiverId === userId) {
+      return res.status(400).send({ message: 'No puedes hacerte un pago a ti mismo' });
+    }
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).send({ message: 'Grupo no encontrado' });
+    }
+
+    // Tanto el pagador como el receptor deben pertenecer al grupo
+    const isGroupMember = (id: string) =>
+      group.members.some((m) => m.toString() === id) || group.createdBy.toString() === id;
+
+    if (!isGroupMember(userId!)) {
+      return res.status(403).send({ message: 'No perteneces a este grupo' });
+    }
+    if (!isGroupMember(receiverId)) {
+      return res.status(400).send({ message: 'El receptor no pertenece a este grupo' });
+    }
+
     // Asignar al usuario autenticado como payerId
     const payment = new Payment({
-      ...req.body,
+      groupId,
+      receiverId,
+      amount,
       payerId: userId,
     });
 
@@ -59,9 +90,10 @@ paymentRouter.get('/payments/:id', async (req: AuthRequest, res) => {
       return res.status(404).send({ message: 'Pago no encontrado' });
     }
 
-    // Solo permitir ver el pago si el usuario participa en él (emisor o receptor)
-    const isPayer =  payment.payerId.toString() === userId;
-    const isReceiver = payment.receiverId.toString() === userId;
+    // Solo permitir ver el pago si el usuario participa en él (emisor o receptor).
+    // Tras el populate, payerId y receiverId son documentos, por eso se compara su _id.
+    const isPayer = payment.payerId._id.toString() === userId;
+    const isReceiver = payment.receiverId._id.toString() === userId;
 
     if (!isPayer && !isReceiver) {
       return res.status(403).send({ message: 'No tienes permiso para ver este pago' });
@@ -91,15 +123,20 @@ paymentRouter.patch('/payments/:id', async (req: AuthRequest, res) => {
       return res.status(404).send({ message: 'Pago no encontrado' });
     }
 
-    // Solo el receptor o el pagador pueden actualizar el estado del pago
-    const isPayer = payment.payerId.toString() === userId;
-    const isReceiver = payment.receiverId.toString() === userId;
-
-    if (!isPayer && !isReceiver) {
-      return res.status(403).send({ message: 'No tienes permiso para modificar este pago' });
+    // Solo el receptor puede confirmar que ha recibido el pago
+    if (payment.receiverId.toString() !== userId) {
+      return res.status(403).send({ message: 'Solo el receptor puede confirmar este pago' });
     }
 
-    payment.set(req.body);
+    // El único cambio de estado permitido es de pending a completed
+    if (req.body.status !== 'completed') {
+      return res.status(400).send({ message: 'Solo se puede marcar el pago como completado' });
+    }
+    if (payment.status === 'completed') {
+      return res.status(400).send({ message: 'El pago ya está completado' });
+    }
+
+    payment.status = 'completed';
     await payment.save();
 
     await payment.populate('payerId', 'name email');
@@ -123,6 +160,11 @@ paymentRouter.delete('/payments/:id', async (req: AuthRequest, res) => {
     // Solo el pagador que emitió el pago puede cancelarlo/eliminarlo
     if (payment.payerId.toString() !== userId) {
       return res.status(403).send({ message: 'Solo quien emitió el pago puede eliminarlo' });
+    }
+
+    // Un pago ya confirmado por el receptor no se puede eliminar
+    if (payment.status === 'completed') {
+      return res.status(400).send({ message: 'No se puede eliminar un pago ya completado' });
     }
 
     await payment.deleteOne();

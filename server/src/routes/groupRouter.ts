@@ -63,7 +63,11 @@ groupRouter.post('/groups/join', async (req: AuthRequest, res) => {
     group.members.push(userId as any);
     await group.save();
 
-    res.status(200).send({ 
+    // Se pueblan los campos igual que en GET /groups para que el cliente reciba el mismo formato
+    await group.populate('members', 'name email');
+    await group.populate('createdBy', 'name email');
+
+    res.status(200).send({
       message: 'Te has unido al grupo correctamente', 
       group 
     });
