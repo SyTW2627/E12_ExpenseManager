@@ -1,12 +1,21 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { logout } from './authSlice'
 
+// El backend devuelve members y createdBy poblados ({ _id, name, email }).
+// Se admite también el id como string por si alguna ruta no los puebla.
+export interface GroupMember {
+  _id: string
+  name: string
+  email: string
+}
+
 export interface Group {
   _id: string
   name: string
   description?: string
-  createdBy: string
-  members: string[]
+  inviteCode?: string
+  createdBy: GroupMember | string
+  members: (GroupMember | string)[]
   createdAt: string
   updatedAt: string
 }

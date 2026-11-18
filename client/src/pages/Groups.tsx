@@ -1,8 +1,80 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Icon } from './AuthVisual'
 import { useAppDispatch, useAppSelector } from '../store'
-import { clearJoinStatus, fetchMyGroups, joinGroup } from '../store/slices/groupsSlice'
+import { clearJoinStatus, fetchMyGroups, joinGroup, type Group } from '../store/slices/groupsSlice'
 import './Groups.css'
+
+// Paleta de colores para las tarjetas; se asigna por posición para que dos vecinas nunca coincidan
+const CARD_COLORS = ['violet', 'teal', 'coral', 'amber', 'blue', 'pink'] as const
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+}
+
+const MAX_AVATARS = 4
+
+function GroupCard({ group, color }: { group: Group; color: (typeof CARD_COLORS)[number] }) {
+  const members = group.members.map((m) => (typeof m === 'string' ? { _id: m, name: '?' } : m))
+  const visible = members.slice(0, MAX_AVATARS)
+  const extra = members.length - visible.length
+  const [copied, setCopied] = useState(false)
+
+  const copyCode = async () => {
+    if (!group.inviteCode) return
+    try {
+      await navigator.clipboard.writeText(group.inviteCode)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // El portapapeles puede no estar disponible (p. ej. sin HTTPS); no es crítico
+    }
+  }
+
+  return (
+    <article className={`groups-card groups-card--${color}`}>
+      <header className="groups-card__header">
+        <div className="groups-card__icon" aria-hidden="true">
+          <Icon name="users" size={22} />
+        </div>
+        <h2 className="groups-card__title">{group.name}</h2>
+        {group.inviteCode && (
+          <button
+            type="button"
+            className="groups-card__code"
+            onClick={copyCode}
+            title="Copiar código de invitación"
+            aria-label={`Copiar código de invitación ${group.inviteCode}`}
+          >
+            {copied ? '¡Copiado!' : group.inviteCode}
+          </button>
+        )}
+      </header>
+
+      <p className="groups-card__description">{group.description || 'Sin descripción'}</p>
+
+      <footer className="groups-card__footer">
+        <div className="groups-card__people">
+          <ul className="groups-card__avatars" aria-label="Miembros">
+            {visible.map((member) => (
+              <li key={member._id} className="groups-card__avatar" title={member.name}>
+                {initials(member.name)}
+              </li>
+            ))}
+            {extra > 0 && <li className="groups-card__avatar groups-card__avatar--more">+{extra}</li>}
+          </ul>
+          <span className="groups-card__members">
+            {members.length} {members.length === 1 ? 'miembro' : 'miembros'}
+          </span>
+        </div>
+      </footer>
+    </article>
+  )
+}
 
 export default function Groups() {
   const dispatch = useAppDispatch()
@@ -75,19 +147,12 @@ export default function Groups() {
         </div>
       ) : (
         <div className="groups-list">
-          {groups.map((group) => (
-            <article className="groups-card" key={group._id}>
-              <div className="groups-card__icon" aria-hidden="true">
-                <Icon name="users" size={24} />
-              </div>
-              <div>
-                <h2>{group.name}</h2>
-                {group.description && <p>{group.description}</p>}
-                <span className="groups-card__members">
-                  {group.members.length} {group.members.length === 1 ? 'miembro' : 'miembros'}
-                </span>
-              </div>
-            </article>
+          {groups.map((group, index) => (
+            <GroupCard
+              key={group._id}
+              group={group}
+              color={CARD_COLORS[index % CARD_COLORS.length] ?? 'violet'}
+            />
           ))}
         </div>
       )}
