@@ -85,3 +85,149 @@
 @media (max-width: 420px) {
   .groups-join__row { flex-direction: column; }
 }
+
+/* ---------- Mensajes de estado ---------- */
+.groups-message {
+  margin-top: 32px;
+  max-width: 560px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: #f4f5fa;
+  font-size: 14px;
+  color: #69738d;
+}
+.groups-message--error { background: #fdecea; color: #c0392b; }
+
+/* ---------- Lista de grupos ---------- */
+.groups-list {
+  margin-top: 32px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr));
+  gap: 20px;
+}
+
+.groups-card {
+  /* Color de acento por grupo (se sobreescribe con los modificadores de abajo) */
+  --accent: #7661d7;
+  --accent-soft: #f0edff;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 190px;
+  padding: 22px 22px 18px;
+  overflow: hidden;
+  border: 1px solid #e3e6f0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(26, 35, 64, .04);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.groups-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 5px;
+  background: var(--accent);
+}
+.groups-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 35%, #e3e6f0);
+  box-shadow: 0 12px 28px rgba(26, 35, 64, .09);
+}
+
+.groups-card--violet { --accent: #7661d7; --accent-soft: #f0edff; }
+.groups-card--teal   { --accent: #179e8e; --accent-soft: #e3f6f3; }
+.groups-card--coral  { --accent: #e0664f; --accent-soft: #fdece8; }
+.groups-card--amber  { --accent: #d08a12; --accent-soft: #fdf3df; }
+.groups-card--blue   { --accent: #3b7bdc; --accent-soft: #e6effc; }
+.groups-card--pink   { --accent: #c9508f; --accent-soft: #fbe8f2; }
+
+.groups-card__header { display: flex; align-items: center; gap: 14px; }
+.groups-card__header .groups-card__code { margin-left: auto; align-self: flex-start; }
+
+.groups-card__icon {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.groups-card__title {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.3;
+  color: #1a2340;
+  overflow-wrap: anywhere;
+}
+
+.groups-card__description {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #69738d;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.groups-card__footer {
+  display: flex;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid #eef0f6;
+}
+
+.groups-card__people { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+.groups-card__avatars { display: flex; margin: 0; padding: 0; list-style: none; }
+
+.groups-card__avatar {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  margin-left: -7px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  letter-spacing: -.3px;
+  font-weight: 700;
+}
+.groups-card__avatar:first-child { margin-left: 0; }
+.groups-card__avatar:nth-child(2) { background: color-mix(in srgb, var(--accent) 80%, #1a2340); }
+.groups-card__avatar:nth-child(3) { background: color-mix(in srgb, var(--accent) 65%, #fff); }
+.groups-card__avatar:nth-child(4) { background: color-mix(in srgb, var(--accent) 60%, #1a2340); }
+.groups-card__avatar--more { background: #eef0f6 !important; color: #69738d; }
+
+.groups-card__members { font-size: 13px; color: #69738d; white-space: nowrap; }
+
+.groups-card__code {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.groups-card__code:hover { border-style: solid; }
+.groups-card__code:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .groups-card { transition: none; }
+  .groups-card:hover { transform: none; }
+}
