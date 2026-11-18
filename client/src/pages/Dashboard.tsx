@@ -2,9 +2,10 @@ import { Brand, Icon } from './AuthVisual'
 import { useAppDispatch, useAppSelector } from '../store'
 import { logout } from '../store/slices/authSlice'
 import Groups from './Groups'
+import Expenses from './Expenses'
 import './Dashboard.css'
 
-type Section = 'home' | 'groups'
+type Section = 'home' | 'groups' | 'expenses'
 
 interface DashboardProps {
   section: Section
@@ -40,6 +41,14 @@ export default function Dashboard({ section, onNavigate }: DashboardProps) {
           >
             <Icon name="users" size={19} /> Mis grupos
           </a>
+          <a
+            href="/gastos"
+            className={`dashboard-nav__link${section === 'expenses' ? ' dashboard-nav__link--active' : ''}`}
+            aria-current={section === 'expenses' ? 'page' : undefined}
+            onClick={(event) => { event.preventDefault(); onNavigate('expenses') }}
+          >
+            <Icon name="receipt" size={19} /> Gastos
+          </a>
         </nav>
 
         <button className="dashboard-logout" type="button" onClick={() => dispatch(logout())}>
@@ -49,6 +58,8 @@ export default function Dashboard({ section, onNavigate }: DashboardProps) {
 
       {section === 'groups' ? (
         <Groups />
+      ) : section === 'expenses' ? (
+        <Expenses />
       ) : (
         <section className="dashboard-content" aria-label="Inicio">
           <h1>Hola, {firstName}</h1>

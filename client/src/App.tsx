@@ -6,9 +6,12 @@ import Register from './pages/Register'
 
 // Redux controla el acceso; las rutas solo deciden qué sección se muestra.
 const currentPath = () => window.location.pathname.replace(/\/+$/, '') || '/'
-const privatePaths = ['/dashboard', '/grupos']
+const privatePaths = ['/dashboard', '/grupos', '/gastos']
 
-type PrivatePath = '/dashboard' | '/grupos'
+type PrivatePath = '/dashboard' | '/grupos' | '/gastos'
+
+const sectionByPath = { '/dashboard': 'home', '/grupos': 'groups', '/gastos': 'expenses' } as const
+const pathBySection = { home: '/dashboard', groups: '/grupos', expenses: '/gastos' } as const
 
 function App() {
   const [path, setPath] = useState(currentPath)
@@ -39,7 +42,7 @@ function App() {
 
   useEffect(() => {
     const pageTitle = isAuthenticated
-      ? path === '/grupos' ? 'Mis grupos' : 'Inicio'
+      ? path === '/grupos' ? 'Mis grupos' : path === '/gastos' ? 'Gastos' : 'Inicio'
       : path === '/register' ? 'Crear cuenta' : 'Iniciar sesión'
 
     document.title = `${pageTitle} | Cuentas Claras`
@@ -48,8 +51,8 @@ function App() {
   if (isAuthenticated) {
     return (
       <Dashboard
-        section={path === '/grupos' ? 'groups' : 'home'}
-        onNavigate={(section) => navigatePrivate(section === 'groups' ? '/grupos' : '/dashboard')}
+        section={sectionByPath[path as PrivatePath] ?? 'home'}
+        onNavigate={(section) => navigatePrivate(pathBySection[section])}
       />
     )
   }
