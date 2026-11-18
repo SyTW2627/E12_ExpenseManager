@@ -24,9 +24,14 @@ async function seed() {
   console.log('Conectado a', process.env.MONGODB_URL);
 
   // Limpiar solo los datos de ejecuciones anteriores
-  const oldUsers = await User.find({ email: { $in: usersData.map((u) => u.email) } });
+  // (incluye los correos @demo.com de la primera versión del script)
+  const seedEmails = usersData.flatMap((u) => [u.email, u.email.replace('@gmail.com', '@demo.com')]);
+  const seedInviteCodes = ['PISO01', 'LISBOA', 'CENA24', 'FUTBOL'];
+  const oldUsers = await User.find({ email: { $in: seedEmails } });
   const oldIds = oldUsers.map((u) => u._id);
-  const oldGroups = await Group.find({ createdBy: { $in: oldIds } });
+  const oldGroups = await Group.find({
+    $or: [{ createdBy: { $in: oldIds } }, { inviteCode: { $in: seedInviteCodes } }],
+  });
   const oldGroupIds = oldGroups.map((g) => g._id);
   await Expense.deleteMany({ groupId: { $in: oldGroupIds } });
   await Payment.deleteMany({ groupId: { $in: oldGroupIds } });
