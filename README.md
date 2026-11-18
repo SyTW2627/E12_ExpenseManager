@@ -19,3 +19,4 @@ Se trata de una aplicación web full-stack orientada a la gestión, reparto e in
 
 1. Instalar las dependencias con `npm install`
 2. Arrancar el servidor con el comando `npm run dev`
+3. Ejecutar la batería de tests unitarios con `npm test`
