@@ -2,11 +2,13 @@ import { configureStore } from '@reduxjs/toolkit';
 import { useDispatch, useSelector, type TypedUseSelectorHook } from 'react-redux';
 import authReducer from './slices/authSlice';
 import groupsReducer from './slices/groupsSlice';
+import expensesReducer from './slices/expensesSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     groups: groupsReducer,
+    expenses: expensesReducer,
   },
 });
 

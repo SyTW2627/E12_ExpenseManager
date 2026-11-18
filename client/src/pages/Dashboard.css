@@ -93,9 +93,9 @@
     order: 3;
     width: 100%;
     margin-top: 0;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .dashboard-nav__link { justify-content: center; }
+  .dashboard-nav__link { justify-content: center; gap: 8px; padding: 10px 6px; white-space: nowrap; }
   .dashboard-logout { width: auto; margin-top: 0; padding: 0 14px; }
   .dashboard-content { padding: 36px 22px; }
 }
@@ -103,4 +103,6 @@
 @media (max-width: 400px) {
   .dashboard-sidebar__brand .brand__name { font-size: 16px; }
   .dashboard-logout { font-size: 11px; padding-inline: 10px; }
+  .dashboard-nav__link { font-size: 13px; }
+  .dashboard-nav__link svg { display: none; }
 }
