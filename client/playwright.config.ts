@@ -26,7 +26,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
-    // baseURL: 'http://localhost:3000',
+    baseURL: 'http://localhost:5173',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -70,10 +70,27 @@ export default defineConfig({
     // },
   ],
 
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  /* Arranca el backend y el frontend antes de los tests */
+  webServer: [
+    {
+      // Backend con una base de datos solo para los test end to end, con los datos del seed.ts
+      command: 'npm run seed && npm run dev',
+      cwd: '../server',
+      url: 'http://localhost:5000',
+      env: {
+        PORT: '5000',
+        MONGODB_URL: 'mongodb://127.0.0.1:27017/expense_manager_e2e',
+        JWT_SECRET: 'e2e-secret',
+      },
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+    {
+      // Frontend con la base de datos del backend de arriba
+      command: 'npm run dev',
+      url: 'http://localhost:5173',
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+  ],
 });
