@@ -10,6 +10,10 @@ const privatePaths = ['/dashboard', '/grupos', '/gastos']
 
 type PrivatePath = '/dashboard' | '/grupos' | '/gastos'
 
+const groupPathPattern = /^\/grupos\/([^/]+)$/
+const groupIdFromPath = (path: string) => groupPathPattern.exec(path)?.[1]
+const isPrivatePath = (path: string) => privatePaths.includes(path) || groupIdFromPath(path) !== undefined
+
 const sectionByPath = { '/dashboard': 'home', '/grupos': 'groups', '/gastos': 'expenses' } as const
 const pathBySection = { home: '/dashboard', groups: '/grupos', expenses: '/gastos' } as const
 
@@ -25,16 +29,16 @@ function App() {
 
   // redirige al inicio tras autenticarse y al login al cerrar sesión.
   useEffect(() => {
-    if (isAuthenticated && !privatePaths.includes(path)) {
+    if (isAuthenticated && !isPrivatePath(path)) {
       window.history.replaceState(null, '', '/dashboard')
       setPath('/dashboard')
-    } else if (!isAuthenticated && privatePaths.includes(path)) {
+    } else if (!isAuthenticated && isPrivatePath(path)) {
       window.history.replaceState(null, '', '/login')
       setPath('/login')
     }
   }, [isAuthenticated, path])
   
-  const navigatePrivate = (destination: PrivatePath) => {
+  const navigatePrivate = (destination: string) => {
     if (destination === path) return
     window.history.pushState(null, '', destination)
     setPath(destination)
@@ -42,17 +46,20 @@ function App() {
 
   useEffect(() => {
     const pageTitle = isAuthenticated
-      ? path === '/grupos' ? 'Mis grupos' : path === '/gastos' ? 'Gastos' : 'Inicio'
+      ? path === '/grupos' ? 'Mis grupos' : groupIdFromPath(path) ? 'Grupo' : path === '/gastos' ? 'Gastos' : 'Inicio'
       : path === '/register' ? 'Crear cuenta' : 'Iniciar sesión'
 
     document.title = `${pageTitle} | Cuentas Claras`
   }, [isAuthenticated, path])
 
   if (isAuthenticated) {
+    const groupId = groupIdFromPath(path)
     return (
       <Dashboard
-        section={sectionByPath[path as PrivatePath] ?? 'home'}
+        section={groupId ? 'groups' : sectionByPath[path as PrivatePath] ?? 'home'}
+        groupId={groupId}
         onNavigate={(section) => navigatePrivate(pathBySection[section])}
+        onOpenGroup={(id) => navigatePrivate(`/grupos/${encodeURIComponent(id)}`)}
       />
     )
   }

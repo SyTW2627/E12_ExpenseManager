@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Icon } from './AuthVisual'
 import { useAppDispatch, useAppSelector } from '../store'
 import { clearJoinStatus, fetchMyGroups, joinGroup, type Group } from '../store/slices/groupsSlice'
+import GroupDashboard from './GroupDashboard'
 import './Groups.css'
 
 // Paleta de colores para las tarjetas; se asigna por posición para que dos vecinas nunca coincidan
@@ -18,7 +19,13 @@ function initials(name: string) {
 
 const MAX_AVATARS = 4
 
-function GroupCard({ group, color }: { group: Group; color: (typeof CARD_COLORS)[number] }) {
+interface GroupCardProps {
+  group: Group
+  color: (typeof CARD_COLORS)[number]
+  onOpen: (groupId: string) => void
+}
+
+function GroupCard({ group, color, onOpen }: GroupCardProps) {
   const members = group.members.map((m) => (typeof m === 'string' ? { _id: m, name: '?' } : m))
   const visible = members.slice(0, MAX_AVATARS)
   const extra = members.length - visible.length
@@ -71,12 +78,26 @@ function GroupCard({ group, color }: { group: Group; color: (typeof CARD_COLORS)
             {members.length} {members.length === 1 ? 'miembro' : 'miembros'}
           </span>
         </div>
+        <button
+          type="button"
+          className="groups-card__open"
+          onClick={() => onOpen(group._id)}
+          aria-label={`Ver gastos de ${group.name}`}
+        >
+          Ver gastos <Icon name="arrow" size={14} />
+        </button>
       </footer>
     </article>
   )
 }
 
-export default function Groups() {
+interface GroupsProps {
+  groupId?: string
+  onOpenGroup: (groupId: string) => void
+  onCloseGroup: () => void
+}
+
+export default function Groups({ groupId, onOpenGroup, onCloseGroup }: GroupsProps) {
   const dispatch = useAppDispatch()
   const token = useAppSelector((state) => state.auth.token)
   const { items: groups, loading, error, joining, joinError, joinMessage } = useAppSelector(
@@ -95,6 +116,25 @@ export default function Groups() {
     if (!token || !code) return
     const result = await dispatch(joinGroup({ token, inviteCode: code }))
     if (joinGroup.fulfilled.match(result)) setInviteCode('')
+  }
+
+  if (groupId) {
+    const openGroup = groups.find((group) => group._id === groupId)
+    if (openGroup) return <GroupDashboard group={openGroup} onBack={onCloseGroup} />
+
+    return (
+      <section className="dashboard-content" aria-labelledby="groups-title">
+        <h1 id="groups-title">Mis grupos</h1>
+        {loading ? (
+          <p className="groups-message" role="status">Cargando grupo...</p>
+        ) : (
+          <p className={`groups-message${error ? ' groups-message--error' : ''}`} role="alert">
+            {error ?? 'No se ha encontrado el grupo o no perteneces a él.'}{' '}
+            <button type="button" className="groups-message__link" onClick={onCloseGroup}>Volver a mis grupos</button>
+          </p>
+        )}
+      </section>
+    )
   }
 
   return (
@@ -152,6 +192,7 @@ export default function Groups() {
               key={group._id}
               group={group}
               color={CARD_COLORS[index % CARD_COLORS.length] ?? 'violet'}
+              onOpen={onOpenGroup}
             />
           ))}
         </div>
