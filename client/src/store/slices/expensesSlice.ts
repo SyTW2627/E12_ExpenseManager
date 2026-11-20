@@ -31,16 +31,54 @@ export interface NewExpense {
 }
 
 interface ExpensesState {
+  items: Expense[]
+  listGroupId: string | null
+  loading: boolean
+  error: string | null
   creating: boolean
   createError: string | null
   createMessage: string | null
 }
 
 const initialState: ExpensesState = {
+  items: [],
+  listGroupId: null,
+  loading: false,
+  error: null,
   creating: false,
   createError: null,
   createMessage: null,
 }
+
+export const fetchGroupExpenses = createAsyncThunk<
+  Expense[],
+  { token: string; groupId: string },
+  { rejectValue: string }
+>('expenses/fetchGroupExpenses', async ({ token, groupId }, { rejectWithValue }) => {
+  try {
+    const response = await fetch(
+      `http://localhost:5000/api/expenses?groupId=${encodeURIComponent(groupId)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+
+    const data: unknown = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        return rejectWithValue('Tu sesión ha caducado. Vuelve a iniciar sesión.')
+      }
+      const message = (data as { message?: string } | null)?.message
+      return rejectWithValue(message ?? 'No se pudieron obtener los gastos del grupo.')
+    }
+
+    if (!Array.isArray(data)) {
+      return rejectWithValue('La respuesta del servidor no es válida.')
+    }
+    return data as Expense[]
+  } catch {
+    return rejectWithValue('No se pudo conectar con el servidor.')
+  }
+})
 
 // POST /api/expenses. El backend comprueba que el pagador y los participantes sean del grupo.
 export const createExpense = createAsyncThunk<
@@ -95,6 +133,27 @@ const expensesSlice = createSlice({
       .addCase(createExpense.fulfilled, (state, action) => {
         state.creating = false
         state.createMessage = `Gasto "${action.payload.concept}" añadido correctamente.`
+        if (String(action.payload.groupId) === state.listGroupId) {
+          state.items.unshift(action.payload)
+        }
+      })
+      .addCase(fetchGroupExpenses.pending, (state, action) => {
+        state.loading = true
+        state.error = null
+        if (state.listGroupId !== action.meta.arg.groupId) {
+          state.items = []
+          state.listGroupId = action.meta.arg.groupId
+        }
+      })
+      .addCase(fetchGroupExpenses.fulfilled, (state, action) => {
+        if (state.listGroupId !== action.meta.arg.groupId) return
+        state.loading = false
+        state.items = action.payload
+      })
+      .addCase(fetchGroupExpenses.rejected, (state, action) => {
+        if (state.listGroupId !== action.meta.arg.groupId) return
+        state.loading = false
+        state.error = action.payload ?? 'Error al cargar los gastos.'
       })
       .addCase(createExpense.rejected, (state, action) => {
         state.creating = false

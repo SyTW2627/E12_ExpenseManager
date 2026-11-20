@@ -9,10 +9,12 @@ type Section = 'home' | 'groups' | 'expenses'
 
 interface DashboardProps {
   section: Section
+  groupId?: string
   onNavigate: (section: Section) => void
+  onOpenGroup: (groupId: string) => void
 }
 
-export default function Dashboard({ section, onNavigate }: DashboardProps) {
+export default function Dashboard({ section, groupId, onNavigate, onOpenGroup }: DashboardProps) {
   const dispatch = useAppDispatch()
   const user = useAppSelector((state) => state.auth.user)
   const firstName = user?.name?.trim().split(/\s+/)[0] || 'usuario'
@@ -57,7 +59,7 @@ export default function Dashboard({ section, onNavigate }: DashboardProps) {
       </aside>
 
       {section === 'groups' ? (
-        <Groups />
+        <Groups groupId={groupId} onOpenGroup={onOpenGroup} onCloseGroup={() => onNavigate('groups')} />
       ) : section === 'expenses' ? (
         <Expenses />
       ) : (

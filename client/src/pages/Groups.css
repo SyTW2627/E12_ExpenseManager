@@ -211,6 +211,32 @@
 
 .groups-card__members { font-size: 13px; color: #69738d; white-space: nowrap; }
 
+.groups-card__open {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.groups-card__open:hover { background: color-mix(in srgb, var(--accent) 18%, #fff); }
+.groups-card__open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.groups-message__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .groups-card__code {
   flex-shrink: 0;
   padding: 6px 10px;
