@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, afterEach, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { Types } from 'mongoose';
 import { Expense } from '../src/models/expense.js';
@@ -90,6 +90,10 @@ describe('Utilidad simplifyDebts', () => {
 });
 
 describe('Controlador getSimplifiedExpenses', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const groupId = new Types.ObjectId().toString();
   const userA = new Types.ObjectId().toString();
   const userB = new Types.ObjectId().toString();
@@ -110,8 +114,8 @@ describe('Controlador getSimplifiedExpenses', () => {
     assert.equal(res.statusCode, 400);
   });
 
-  it('debe devolver 404 si el grupo no existe', async (t) => {
-    t.mock.method(Group, 'findById', async () => null);
+  it('debe devolver 404 si el grupo no existe', async () => {
+    vi.spyOn(Group, 'findById').mockImplementation((async () => null) as any);
     const req = createMockReq({ user: { id: userA }, params: { groupId } });
     const res = createMockRes();
 
@@ -120,8 +124,8 @@ describe('Controlador getSimplifiedExpenses', () => {
     assert.equal(res.statusCode, 404);
   });
 
-  it('debe devolver 403 si el usuario no pertenece al grupo', async (t) => {
-    t.mock.method(Group, 'findById', async () => mockGroup);
+  it('debe devolver 403 si el usuario no pertenece al grupo', async () => {
+    vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
     const req = createMockReq({ user: { id: outsider }, params: { groupId } });
     const res = createMockRes();
 
@@ -130,9 +134,9 @@ describe('Controlador getSimplifiedExpenses', () => {
     assert.equal(res.statusCode, 403);
   });
 
-  it('debe devolver saldos y transferencias simplificadas del grupo', async (t) => {
-    t.mock.method(Group, 'findById', async () => mockGroup);
-    t.mock.method(Expense, 'find', async () => [
+  it('debe devolver saldos y transferencias simplificadas del grupo', async () => {
+    vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
+    vi.spyOn(Expense, 'find').mockImplementation((async () => [
       {
         payerId: new Types.ObjectId(userA),
         amount: 60,
@@ -141,14 +145,14 @@ describe('Controlador getSimplifiedExpenses', () => {
           { userId: new Types.ObjectId(userB), share: 50 },
         ],
       },
-    ]);
-    t.mock.method(Payment, 'find', async () => [
+    ]) as any);
+    vi.spyOn(Payment, 'find').mockImplementation((async () => [
       { payerId: new Types.ObjectId(userB), receiverId: new Types.ObjectId(userA), amount: 10 },
-    ]);
-    t.mock.method(User, 'find', async () => [
+    ]) as any);
+    vi.spyOn(User, 'find').mockImplementation((async () => [
       { _id: new Types.ObjectId(userA), name: 'Ana', email: 'ana@test.com' },
       { _id: new Types.ObjectId(userB), name: 'Beto', email: 'beto@test.com' },
-    ]);
+    ]) as any);
 
     const req = createMockReq({ user: { id: userB }, params: { groupId } });
     const res = createMockRes();

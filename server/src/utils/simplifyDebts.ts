@@ -1,11 +1,3 @@
-/**
- * Lógica para calcular los saldos de un grupo y simplificar las deudas,
- * de forma que se necesite el menor número posible de transferencias.
- *
- * Todos los cálculos se hacen en céntimos (enteros) para evitar errores
- * de redondeo con números decimales.
- */
-
 export interface ExpenseLike {
   payerId: { toString(): string };
   amount: number;
@@ -26,12 +18,6 @@ export interface SimplifiedTransaction {
 
 const toCents = (value: number) => Math.round(Number(value) * 100);
 
-/**
- * Reparte una cantidad en céntimos entre los participantes de forma proporcional
- * a su share, usando el método del mayor resto para que la suma sea exacta.
- * El share se interpreta como peso relativo (porcentaje), por lo que un reparto
- * equitativo de 33.33 + 33.33 + 33.33 sigue repartiendo el 100% del importe.
- */
 const splitAmount = (totalCents: number, participants: ExpenseLike['participants']) => {
   const totalShare = participants.reduce((acc, p) => acc + Number(p.share), 0);
   if (totalShare <= 0) return [];
@@ -51,11 +37,6 @@ const splitAmount = (totalCents: number, participants: ExpenseLike['participants
   return parts;
 };
 
-/**
- * Calcula el saldo neto (en céntimos) de cada usuario.
- * Saldo positivo: le deben dinero. Saldo negativo: debe dinero.
- * Los pagos ya completados entre miembros reducen las deudas pendientes.
- */
 export const calculateBalances = (
   expenses: ExpenseLike[],
   payments: PaymentLike[] = [],
@@ -86,10 +67,6 @@ export const calculateBalances = (
   return balances;
 };
 
-/**
- * Simplifica las deudas: empareja en cada paso al mayor deudor con el mayor
- * acreedor, generando como máximo (n - 1) transferencias para n usuarios.
- */
 export const simplifyDebts = (balances: Map<string, number>): SimplifiedTransaction[] => {
   const debtors = [...balances.entries()]
     .filter(([, cents]) => cents < 0)

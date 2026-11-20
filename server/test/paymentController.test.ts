@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, afterEach, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { Types } from 'mongoose';
 import { Payment } from '../src/models/payment.js';
@@ -13,6 +13,10 @@ import {
 import { createMockReq, createMockRes } from './helpers/mockExpress.js';
 
 describe('Controlador paymentController', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const groupId = new Types.ObjectId().toString();
   const payerId = new Types.ObjectId().toString();
   const receiverId = new Types.ObjectId().toString();
@@ -44,11 +48,11 @@ describe('Controlador paymentController', () => {
       assert.deepEqual(res.body, { message: 'No puedes hacerte un pago a ti mismo' });
     });
 
-    it('debe devolver 403 si el pagador no pertenece al grupo', async (t) => {
-      t.mock.method(Group, 'findById', async () => ({
+    it('debe devolver 403 si el pagador no pertenece al grupo', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => ({
         createdBy: new Types.ObjectId(receiverId),
         members: [new Types.ObjectId(receiverId)],
-      }));
+      })) as any);
 
       const req = createMockReq({
         user: { id: outsiderId },
@@ -62,17 +66,17 @@ describe('Controlador paymentController', () => {
       assert.deepEqual(res.body, { message: 'No perteneces a este grupo' });
     });
 
-    it('debe crear el pago con status pending por defecto y devolver 201', async (t) => {
-      t.mock.method(Group, 'findById', async () => ({
+    it('debe crear el pago con status pending por defecto y devolver 201', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => ({
         createdBy: new Types.ObjectId(payerId),
         members: [new Types.ObjectId(payerId), new Types.ObjectId(receiverId)],
-      }));
-      t.mock.method(Payment.prototype, 'save', async function (this: any) {
+      })) as any);
+      vi.spyOn(Payment.prototype, 'save').mockImplementation((async function (this: any) {
         return this;
-      });
-      t.mock.method(Payment.prototype, 'populate', async function (this: any) {
+      }) as any);
+      vi.spyOn(Payment.prototype, 'populate').mockImplementation((async function (this: any) {
         return this;
-      });
+      }) as any);
 
       const req = createMockReq({
         user: { id: payerId },
@@ -90,12 +94,12 @@ describe('Controlador paymentController', () => {
   });
 
   describe('getPayments y getPaymentById', () => {
-    it('getPayments debe devolver 200 con la lista de pagos del usuario', async (t) => {
-      t.mock.method(Payment, 'find', () => ({
+    it('getPayments debe devolver 200 con la lista de pagos del usuario', async () => {
+      vi.spyOn(Payment, 'find').mockImplementation((() => ({
         populate: () => ({
           populate: async () => [{ amount: 30, status: 'pending' }],
         }),
-      }));
+      })) as any);
 
       const req = createMockReq({ user: { id: payerId }, query: { groupId } });
       const res = createMockRes();
@@ -106,8 +110,8 @@ describe('Controlador paymentController', () => {
       assert.equal(res.body.length, 1);
     });
 
-    it('getPaymentById debe devolver 403 si el usuario no es ni pagador ni receptor', async (t) => {
-      t.mock.method(Payment, 'findById', () => ({
+    it('getPaymentById debe devolver 403 si el usuario no es ni pagador ni receptor', async () => {
+      vi.spyOn(Payment, 'findById').mockImplementation((() => ({
         populate: () => ({
           populate: async () => ({
             payerId: { _id: new Types.ObjectId(payerId) },
@@ -115,7 +119,7 @@ describe('Controlador paymentController', () => {
             amount: 30,
           }),
         }),
-      }));
+      })) as any);
 
       const req = createMockReq({
         user: { id: outsiderId },
@@ -130,12 +134,12 @@ describe('Controlador paymentController', () => {
   });
 
   describe('updatePayment', () => {
-    it('debe devolver 403 si quien intenta confirmar el pago no es el receptor', async (t) => {
-      t.mock.method(Payment, 'findById', async () => ({
+    it('debe devolver 403 si quien intenta confirmar el pago no es el receptor', async () => {
+      vi.spyOn(Payment, 'findById').mockImplementation((async () => ({
         payerId: new Types.ObjectId(payerId),
         receiverId: new Types.ObjectId(receiverId),
         status: 'pending',
-      }));
+      })) as any);
 
       const req = createMockReq({
         user: { id: payerId }, // El pagador no puede auto-confirmarse el pago
@@ -150,7 +154,7 @@ describe('Controlador paymentController', () => {
       assert.deepEqual(res.body, { message: 'Solo el receptor puede confirmar este pago' });
     });
 
-    it('debe confirmar el pago (status = completed) cuando lo solicita el receptor', async (t) => {
+    it('debe confirmar el pago (status = completed) cuando lo solicita el receptor', async () => {
       const mockPayment: any = {
         payerId: new Types.ObjectId(payerId),
         receiverId: new Types.ObjectId(receiverId),
@@ -162,7 +166,7 @@ describe('Controlador paymentController', () => {
           return this;
         },
       };
-      t.mock.method(Payment, 'findById', async () => mockPayment);
+      vi.spyOn(Payment, 'findById').mockImplementation((async () => mockPayment) as any);
 
       const req = createMockReq({
         user: { id: receiverId },
@@ -179,12 +183,12 @@ describe('Controlador paymentController', () => {
   });
 
   describe('deletePayment', () => {
-    it('debe devolver 400 si se intenta eliminar un pago que ya está completado', async (t) => {
-      t.mock.method(Payment, 'findById', async () => ({
+    it('debe devolver 400 si se intenta eliminar un pago que ya está completado', async () => {
+      vi.spyOn(Payment, 'findById').mockImplementation((async () => ({
         payerId: new Types.ObjectId(payerId),
         receiverId: new Types.ObjectId(receiverId),
         status: 'completed',
-      }));
+      })) as any);
 
       const req = createMockReq({
         user: { id: payerId },
@@ -198,16 +202,16 @@ describe('Controlador paymentController', () => {
       assert.deepEqual(res.body, { message: 'No se puede eliminar un pago ya completado' });
     });
 
-    it('debe eliminar un pago pendiente cuando lo solicita el pagador', async (t) => {
+    it('debe eliminar un pago pendiente cuando lo solicita el pagador', async () => {
       let deleted = false;
-      t.mock.method(Payment, 'findById', async () => ({
+      vi.spyOn(Payment, 'findById').mockImplementation((async () => ({
         payerId: new Types.ObjectId(payerId),
         receiverId: new Types.ObjectId(receiverId),
         status: 'pending',
         deleteOne: async () => {
           deleted = true;
         },
-      }));
+      })) as any);
 
       const req = createMockReq({
         user: { id: payerId },

@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, afterEach, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { Types } from 'mongoose';
 import { Group } from '../src/models/group.js';
@@ -13,19 +13,23 @@ import {
 import { createMockReq, createMockRes } from './helpers/mockExpress.js';
 
 describe('Controlador groupController', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const creatorId = new Types.ObjectId().toString();
   const memberId = new Types.ObjectId().toString();
   const outsiderId = new Types.ObjectId().toString();
 
   describe('createGroup', () => {
-    it('debe crear un grupo, asignar createdBy desde el token e incluir al creador en members', async (t) => {
-      t.mock.method(Group.prototype, 'save', async function (this: any) {
+    it('debe crear un grupo, asignar createdBy desde el token e incluir al creador en members', async () => {
+      vi.spyOn(Group.prototype, 'save').mockImplementation((async function (this: any) {
         this.inviteCode = 'ABC123';
         return this;
-      });
-      t.mock.method(Group.prototype, 'populate', async function (this: any) {
+      }) as any);
+      vi.spyOn(Group.prototype, 'populate').mockImplementation((async function (this: any) {
         return this;
-      });
+      }) as any);
 
       const req = createMockReq({
         user: { id: creatorId },
@@ -53,8 +57,8 @@ describe('Controlador groupController', () => {
       assert.deepEqual(res.body, { message: 'El código de invitación es obligatorio' });
     });
 
-    it('debe devolver 404 si el código de invitación no corresponde a ningún grupo', async (t) => {
-      t.mock.method(Group, 'findOne', async () => null);
+    it('debe devolver 404 si el código de invitación no corresponde a ningún grupo', async () => {
+      vi.spyOn(Group, 'findOne').mockImplementation((async () => null) as any);
 
       const req = createMockReq({ user: { id: memberId }, body: { inviteCode: 'NOEXST' } });
       const res = createMockRes();
@@ -64,10 +68,10 @@ describe('Controlador groupController', () => {
       assert.equal(res.statusCode, 404);
     });
 
-    it('debe devolver 400 si el usuario ya es miembro del grupo', async (t) => {
-      t.mock.method(Group, 'findOne', async () => ({
+    it('debe devolver 400 si el usuario ya es miembro del grupo', async () => {
+      vi.spyOn(Group, 'findOne').mockImplementation((async () => ({
         members: [new Types.ObjectId(memberId)],
-      }));
+      })) as any);
 
       const req = createMockReq({ user: { id: memberId }, body: { inviteCode: 'LISBOA' } });
       const res = createMockRes();
@@ -78,7 +82,7 @@ describe('Controlador groupController', () => {
       assert.deepEqual(res.body, { message: 'Ya eres miembro de este grupo' });
     });
 
-    it('debe añadir al usuario a members y devolver 200', async (t) => {
+    it('debe añadir al usuario a members y devolver 200', async () => {
       const mockGroup: any = {
         name: 'Viaje a Lisboa',
         members: [new Types.ObjectId(creatorId)],
@@ -89,7 +93,7 @@ describe('Controlador groupController', () => {
           return this;
         },
       };
-      t.mock.method(Group, 'findOne', async () => mockGroup);
+      vi.spyOn(Group, 'findOne').mockImplementation((async () => mockGroup) as any);
 
       const req = createMockReq({ user: { id: memberId }, body: { inviteCode: 'lisboa' } });
       const res = createMockRes();
@@ -112,12 +116,12 @@ describe('Controlador groupController', () => {
       assert.equal(res.statusCode, 401);
     });
 
-    it('debe devolver 200 con los grupos del usuario', async (t) => {
-      t.mock.method(Group, 'find', () => ({
+    it('debe devolver 200 con los grupos del usuario', async () => {
+      vi.spyOn(Group, 'find').mockImplementation((() => ({
         populate: () => ({
           populate: async () => [{ name: 'Piso compartido' }],
         }),
-      }));
+      })) as any);
 
       const req = createMockReq({ user: { id: creatorId } });
       const res = createMockRes();
@@ -130,8 +134,8 @@ describe('Controlador groupController', () => {
   });
 
   describe('getGroupById', () => {
-    it('debe devolver 403 si el usuario no es miembro ni creador del grupo', async (t) => {
-      t.mock.method(Group, 'findById', () => ({
+    it('debe devolver 403 si el usuario no es miembro ni creador del grupo', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((() => ({
         populate: () => ({
           populate: async () => ({
             name: 'Grupo Privado',
@@ -139,7 +143,7 @@ describe('Controlador groupController', () => {
             members: [{ _id: new Types.ObjectId(creatorId) }],
           }),
         }),
-      }));
+      })) as any);
 
       const req = createMockReq({
         user: { id: outsiderId },
@@ -152,8 +156,8 @@ describe('Controlador groupController', () => {
       assert.equal(res.statusCode, 403);
     });
 
-    it('debe devolver 200 si el usuario es miembro del grupo', async (t) => {
-      t.mock.method(Group, 'findById', () => ({
+    it('debe devolver 200 si el usuario es miembro del grupo', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((() => ({
         populate: () => ({
           populate: async () => ({
             name: 'Grupo Compartido',
@@ -161,7 +165,7 @@ describe('Controlador groupController', () => {
             members: [{ _id: new Types.ObjectId(memberId) }],
           }),
         }),
-      }));
+      })) as any);
 
       const req = createMockReq({
         user: { id: memberId },
@@ -177,10 +181,10 @@ describe('Controlador groupController', () => {
   });
 
   describe('updateGroup y deleteGroup', () => {
-    it('updateGroup debe devolver 403 si quien intenta editar no es el creador', async (t) => {
-      t.mock.method(Group, 'findById', async () => ({
+    it('updateGroup debe devolver 403 si quien intenta editar no es el creador', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => ({
         createdBy: new Types.ObjectId(creatorId),
-      }));
+      })) as any);
 
       const req = createMockReq({
         user: { id: memberId },
@@ -194,15 +198,15 @@ describe('Controlador groupController', () => {
       assert.equal(res.statusCode, 403);
     });
 
-    it('deleteGroup debe eliminar el grupo y devolver 200 cuando lo solicita su creador', async (t) => {
+    it('deleteGroup debe eliminar el grupo y devolver 200 cuando lo solicita su creador', async () => {
       let deleted = false;
-      t.mock.method(Group, 'findById', async () => ({
+      vi.spyOn(Group, 'findById').mockImplementation((async () => ({
         name: 'Viaje a borrar',
         createdBy: new Types.ObjectId(creatorId),
         deleteOne: async () => {
           deleted = true;
         },
-      }));
+      })) as any);
 
       const req = createMockReq({
         user: { id: creatorId },
