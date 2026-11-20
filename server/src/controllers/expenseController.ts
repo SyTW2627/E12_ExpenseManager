@@ -2,7 +2,66 @@ import type { Response } from 'express';
 import { isValidObjectId } from 'mongoose';
 import { Expense } from '../models/expense.js';
 import { Group } from '../models/group.js';
+import { Payment } from '../models/payment.js';
+import { User } from '../models/user.js';
 import type { AuthRequest } from '../middlewares/authMiddleware.js';
+import { calculateBalances, simplifyDebts } from '../utils/simplifyDebts.js';
+
+/**
+ * Devuelve los gastos simplificados de un grupo: el saldo neto de cada miembro
+ * y el mínimo número de transferencias necesarias para saldar todas las deudas.
+ * Se tienen en cuenta los pagos ya completados entre miembros.
+ */
+export const getSimplifiedExpenses = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const groupId = String(req.params.groupId);
+
+    if (!isValidObjectId(groupId)) {
+      return res.status(400).send({ message: 'groupId inválido' });
+    }
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).send({ message: 'Grupo no encontrado' });
+    }
+
+    const isMember =
+      group.members.some((m) => m.toString() === userId) || group.createdBy.toString() === userId;
+    if (!isMember) {
+      return res.status(403).send({ message: 'No tienes permiso para ver los gastos de este grupo' });
+    }
+
+    const expenses = await Expense.find({ groupId });
+    const payments = await Payment.find({ groupId, status: 'completed' });
+
+    const memberIds = [...new Set([...group.members.map((m) => m.toString()), group.createdBy.toString()])];
+    const balances = calculateBalances(expenses, payments, memberIds);
+    const transactions = simplifyDebts(balances);
+
+    // Datos básicos de los usuarios implicados para que el cliente pueda mostrarlos
+    const users = await User.find({ _id: { $in: [...balances.keys()] } }, 'name email');
+    const userInfo = (id: string) => {
+      const user = users.find((u) => u._id.toString() === id);
+      return { _id: id, name: user?.name, email: user?.email };
+    };
+
+    res.status(200).send({
+      groupId,
+      balances: [...balances.entries()].map(([id, cents]) => ({
+        user: userInfo(id),
+        balance: cents / 100,
+      })),
+      transactions: transactions.map((t) => ({
+        from: userInfo(t.from),
+        to: userInfo(t.to),
+        amount: t.amount,
+      })),
+    });
+  } catch (error) {
+    res.status(500).send(error);
+  }
+};
 
 export const createExpense = async (req: AuthRequest, res: Response) => {
   try {

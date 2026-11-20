@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, afterEach, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { Types } from 'mongoose';
 import { User } from '../src/models/user.js';
@@ -12,6 +12,10 @@ import {
 import { createMockReq, createMockRes } from './helpers/mockExpress.js';
 
 describe('Controlador userController', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const currentUserId = new Types.ObjectId().toString();
   const otherUserId = new Types.ObjectId().toString();
 
@@ -26,14 +30,14 @@ describe('Controlador userController', () => {
       assert.match(res.body.message, /parámetro de búsqueda/);
     });
 
-    it('debe buscar usuarios excluyendo al usuario autenticado y devolver 200', async (t) => {
+    it('debe buscar usuarios excluyendo al usuario autenticado y devolver 200', async () => {
       let capturedFilter: any;
-      t.mock.method(User, 'find', (filter: any) => {
+      vi.spyOn(User, 'find').mockImplementation(((filter: any) => {
         capturedFilter = filter;
         return {
           select: async () => [{ name: 'Bea', email: 'bea@gmail.com', trustScore: 100 }],
         };
-      });
+      }) as any);
 
       const req = createMockReq({
         user: { id: currentUserId },
@@ -51,10 +55,10 @@ describe('Controlador userController', () => {
   });
 
   describe('getMe', () => {
-    it('debe devolver 200 con los datos del usuario autenticado', async (t) => {
-      t.mock.method(User, 'findById', () => ({
+    it('debe devolver 200 con los datos del usuario autenticado', async () => {
+      vi.spyOn(User, 'findById').mockImplementation((() => ({
         select: async () => ({ _id: currentUserId, name: 'Álvaro', email: 'alvaro@ull.edu.es', trustScore: 100 }),
-      }));
+      })) as any);
 
       const req = createMockReq({ user: { id: currentUserId } });
       const res = createMockRes();
@@ -65,10 +69,10 @@ describe('Controlador userController', () => {
       assert.equal(res.body.name, 'Álvaro');
     });
 
-    it('debe devolver 404 si el usuario no existe', async (t) => {
-      t.mock.method(User, 'findById', () => ({
+    it('debe devolver 404 si el usuario no existe', async () => {
+      vi.spyOn(User, 'findById').mockImplementation((() => ({
         select: async () => null,
-      }));
+      })) as any);
 
       const req = createMockReq({ user: { id: currentUserId } });
       const res = createMockRes();
@@ -80,10 +84,10 @@ describe('Controlador userController', () => {
   });
 
   describe('getUserById', () => {
-    it('debe devolver 200 con el usuario solicitado', async (t) => {
-      t.mock.method(User, 'findById', () => ({
+    it('debe devolver 200 con el usuario solicitado', async () => {
+      vi.spyOn(User, 'findById').mockImplementation((() => ({
         select: async () => ({ _id: otherUserId, name: 'Carlos', email: 'carlos@gmail.com' }),
-      }));
+      })) as any);
 
       const req = createMockReq({ params: { id: otherUserId } });
       const res = createMockRes();
@@ -124,10 +128,10 @@ describe('Controlador userController', () => {
       assert.deepEqual(res.body, { message: 'Actualización no permitida' });
     });
 
-    it('debe actualizar y devolver 200 cuando modifica campos permitidos de su propio perfil', async (t) => {
-      t.mock.method(User, 'findByIdAndUpdate', () => ({
+    it('debe actualizar y devolver 200 cuando modifica campos permitidos de su propio perfil', async () => {
+      vi.spyOn(User, 'findByIdAndUpdate').mockImplementation((() => ({
         select: async () => ({ _id: currentUserId, name: 'Álvaro Editado', email: 'alvaro@ull.edu.es' }),
-      }));
+      })) as any);
 
       const req = createMockReq({
         user: { id: currentUserId },
@@ -157,11 +161,11 @@ describe('Controlador userController', () => {
       assert.deepEqual(res.body, { message: 'Solo puedes eliminar tu propia cuenta' });
     });
 
-    it('debe eliminar la propia cuenta y devolver 200', async (t) => {
-      t.mock.method(User, 'findByIdAndDelete', async () => ({
+    it('debe eliminar la propia cuenta y devolver 200', async () => {
+      vi.spyOn(User, 'findByIdAndDelete').mockImplementation((async () => ({
         _id: currentUserId,
         name: 'Álvaro',
-      }));
+      })) as any);
 
       const req = createMockReq({
         user: { id: currentUserId },

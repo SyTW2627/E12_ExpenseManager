@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, afterEach, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { Types } from 'mongoose';
 import { Expense } from '../src/models/expense.js';
@@ -13,6 +13,10 @@ import {
 import { createMockReq, createMockRes } from './helpers/mockExpress.js';
 
 describe('Controlador expenseController', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const groupId = new Types.ObjectId().toString();
   const userA = new Types.ObjectId().toString();
   const userB = new Types.ObjectId().toString();
@@ -26,8 +30,8 @@ describe('Controlador expenseController', () => {
   };
 
   describe('createExpense', () => {
-    it('debe devolver 403 si el usuario que intenta crear el gasto no pertenece al grupo', async (t) => {
-      t.mock.method(Group, 'findById', async () => mockGroup);
+    it('debe devolver 403 si el usuario que intenta crear el gasto no pertenece al grupo', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
 
       const req = createMockReq({
         user: { id: outsider },
@@ -41,14 +45,14 @@ describe('Controlador expenseController', () => {
       assert.deepEqual(res.body, { message: 'No perteneces a este grupo' });
     });
 
-    it('debe calcular automáticamente el reparto equitativo (33.33%) entre los miembros si no se envían participants', async (t) => {
-      t.mock.method(Group, 'findById', async () => mockGroup);
-      t.mock.method(Expense.prototype, 'save', async function (this: any) {
+    it('debe calcular automáticamente el reparto equitativo (33.33%) entre los miembros si no se envían participants', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
+      vi.spyOn(Expense.prototype, 'save').mockImplementation((async function (this: any) {
         return this;
-      });
-      t.mock.method(Expense.prototype, 'populate', async function (this: any) {
+      }) as any);
+      vi.spyOn(Expense.prototype, 'populate').mockImplementation((async function (this: any) {
         return this;
-      });
+      }) as any);
 
       const req = createMockReq({
         user: { id: userA },
@@ -65,8 +69,8 @@ describe('Controlador expenseController', () => {
       assert.equal(res.body.participants[0].share, 33.33);
     });
 
-    it('debe devolver 400 en modo percentage si la suma de shares no es 100%', async (t) => {
-      t.mock.method(Group, 'findById', async () => mockGroup);
+    it('debe devolver 400 en modo percentage si la suma de shares no es 100%', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
 
       const req = createMockReq({
         user: { id: userA },
@@ -89,14 +93,14 @@ describe('Controlador expenseController', () => {
       assert.deepEqual(res.body, { message: 'La suma de los porcentajes debe ser 100%' });
     });
 
-    it('debe crear el gasto en modo percentage cuando los porcentajes suman 100%', async (t) => {
-      t.mock.method(Group, 'findById', async () => mockGroup);
-      t.mock.method(Expense.prototype, 'save', async function (this: any) {
+    it('debe crear el gasto en modo percentage cuando los porcentajes suman 100%', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
+      vi.spyOn(Expense.prototype, 'save').mockImplementation((async function (this: any) {
         return this;
-      });
-      t.mock.method(Expense.prototype, 'populate', async function (this: any) {
+      }) as any);
+      vi.spyOn(Expense.prototype, 'populate').mockImplementation((async function (this: any) {
         return this;
-      });
+      }) as any);
 
       const req = createMockReq({
         user: { id: userA },
@@ -123,8 +127,8 @@ describe('Controlador expenseController', () => {
   });
 
   describe('getExpenses y getExpenseById', () => {
-    it('getExpenses debe devolver 403 si el usuario consulta un grupo al que no pertenece', async (t) => {
-      t.mock.method(Group, 'findById', async () => mockGroup);
+    it('getExpenses debe devolver 403 si el usuario consulta un grupo al que no pertenece', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
 
       const req = createMockReq({ user: { id: outsider }, query: { groupId } });
       const res = createMockRes();
@@ -134,15 +138,15 @@ describe('Controlador expenseController', () => {
       assert.equal(res.statusCode, 403);
     });
 
-    it('getExpenses debe devolver 200 con los gastos del grupo para un miembro válido', async (t) => {
-      t.mock.method(Group, 'findById', async () => mockGroup);
-      t.mock.method(Expense, 'find', () => ({
+    it('getExpenses debe devolver 200 con los gastos del grupo para un miembro válido', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
+      vi.spyOn(Expense, 'find').mockImplementation((() => ({
         sort: () => ({
           populate: () => ({
             populate: async () => [{ concept: 'Vuelos', amount: 320 }],
           }),
         }),
-      }));
+      })) as any);
 
       const req = createMockReq({ user: { id: userB }, query: { groupId } });
       const res = createMockRes();
@@ -153,8 +157,8 @@ describe('Controlador expenseController', () => {
       assert.equal(res.body.length, 1);
     });
 
-    it('getExpenseById debe devolver 403 si el usuario no pertenece al grupo del gasto', async (t) => {
-      t.mock.method(Expense, 'findById', () => ({
+    it('getExpenseById debe devolver 403 si el usuario no pertenece al grupo del gasto', async () => {
+      vi.spyOn(Expense, 'findById').mockImplementation((() => ({
         populate: () => ({
           populate: async () => ({
             _id: new Types.ObjectId(),
@@ -162,8 +166,8 @@ describe('Controlador expenseController', () => {
             concept: 'Secreto',
           }),
         }),
-      }));
-      t.mock.method(Group, 'findById', async () => mockGroup);
+      })) as any);
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
 
       const req = createMockReq({
         user: { id: outsider },
@@ -178,7 +182,7 @@ describe('Controlador expenseController', () => {
   });
 
   describe('updateExpense', () => {
-    it('debe recalcular automáticamente el share equitativo al cambiar splitMode de percentage a equal', async (t) => {
+    it('debe recalcular automáticamente el share equitativo al cambiar splitMode de percentage a equal', async () => {
       const mockExpense: any = {
         groupId: new Types.ObjectId(groupId),
         payerId: new Types.ObjectId(userA),
@@ -200,8 +204,8 @@ describe('Controlador expenseController', () => {
         },
       };
 
-      t.mock.method(Expense, 'findById', async () => mockExpense);
-      t.mock.method(Group, 'findById', async () => mockGroup);
+      vi.spyOn(Expense, 'findById').mockImplementation((async () => mockExpense) as any);
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
 
       const req = createMockReq({
         user: { id: userA },
@@ -218,7 +222,7 @@ describe('Controlador expenseController', () => {
       assert.equal(mockExpense.participants[1].share, 50);
     });
 
-    it('debe devolver 400 si se cambia a percentage sin especificar los nuevos porcentajes', async (t) => {
+    it('debe devolver 400 si se cambia a percentage sin especificar los nuevos porcentajes', async () => {
       const mockExpense: any = {
         groupId: new Types.ObjectId(groupId),
         payerId: new Types.ObjectId(userA),
@@ -229,8 +233,8 @@ describe('Controlador expenseController', () => {
         ],
       };
 
-      t.mock.method(Expense, 'findById', async () => mockExpense);
-      t.mock.method(Group, 'findById', async () => mockGroup);
+      vi.spyOn(Expense, 'findById').mockImplementation((async () => mockExpense) as any);
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
 
       const req = createMockReq({
         user: { id: userA },
@@ -247,12 +251,12 @@ describe('Controlador expenseController', () => {
   });
 
   describe('deleteExpense', () => {
-    it('debe devolver 403 si quien intenta borrar no es el pagador ni el creador del grupo', async (t) => {
-      t.mock.method(Expense, 'findById', async () => ({
+    it('debe devolver 403 si quien intenta borrar no es el pagador ni el creador del grupo', async () => {
+      vi.spyOn(Expense, 'findById').mockImplementation((async () => ({
         groupId: new Types.ObjectId(groupId),
         payerId: new Types.ObjectId(userB),
-      }));
-      t.mock.method(Group, 'findById', async () => mockGroup); // userA es el creador
+      })) as any);
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any); // userA es el creador
 
       const req = createMockReq({
         user: { id: userC }, // userC no es ni pagador (userB) ni creador del grupo (userA)
@@ -265,16 +269,16 @@ describe('Controlador expenseController', () => {
       assert.equal(res.statusCode, 403);
     });
 
-    it('debe eliminar el gasto y devolver 200 si lo solicita el pagador o el creador del grupo', async (t) => {
+    it('debe eliminar el gasto y devolver 200 si lo solicita el pagador o el creador del grupo', async () => {
       let deleted = false;
-      t.mock.method(Expense, 'findById', async () => ({
+      vi.spyOn(Expense, 'findById').mockImplementation((async () => ({
         groupId: new Types.ObjectId(groupId),
         payerId: new Types.ObjectId(userB),
         deleteOne: async () => {
           deleted = true;
         },
-      }));
-      t.mock.method(Group, 'findById', async () => mockGroup); // userA es creador del grupo
+      })) as any);
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any); // userA es creador del grupo
 
       const req = createMockReq({
         user: { id: userA },

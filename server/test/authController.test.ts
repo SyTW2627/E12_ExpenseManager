@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, beforeEach, afterEach, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { Types } from 'mongoose';
 import { User } from '../src/models/user.js';
@@ -8,6 +8,10 @@ import { createMockReq, createMockRes } from './helpers/mockExpress.js';
 describe('Controlador authController - registerUser y loginUser', () => {
   beforeEach(() => {
     process.env.JWT_SECRET = 'test_secret_key_for_unit_tests';
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('registerUser', () => {
@@ -33,8 +37,8 @@ describe('Controlador authController - registerUser y loginUser', () => {
       assert.deepEqual(res.body, { message: 'La contraseña debe tener al menos 8 caracteres' });
     });
 
-    it('debe devolver 409 si el correo electrónico ya está registrado', async (t) => {
-      t.mock.method(User, 'findOne', async () => ({ _id: new Types.ObjectId(), email: 'ana@ull.edu.es' }));
+    it('debe devolver 409 si el correo electrónico ya está registrado', async () => {
+      vi.spyOn(User, 'findOne').mockImplementation((async () => ({ _id: new Types.ObjectId(), email: 'ana@ull.edu.es' })) as any);
 
       const req = createMockReq({
         body: { name: 'Ana', email: 'ana@ull.edu.es', password: 'password123' },
@@ -47,11 +51,11 @@ describe('Controlador authController - registerUser y loginUser', () => {
       assert.deepEqual(res.body, { message: 'El correo electrónico ya está registrado' });
     });
 
-    it('debe registrar un nuevo usuario con código 201 y devolver token y datos del usuario', async (t) => {
-      t.mock.method(User, 'findOne', async () => null);
-      t.mock.method(User.prototype, 'save', async function (this: any) {
+    it('debe registrar un nuevo usuario con código 201 y devolver token y datos del usuario', async () => {
+      vi.spyOn(User, 'findOne').mockImplementation((async () => null) as any);
+      vi.spyOn(User.prototype, 'save').mockImplementation((async function (this: any) {
         return this;
-      });
+      }) as any);
 
       const req = createMockReq({
         body: { name: '  Ana García  ', email: '  ANA@ull.edu.es  ', password: 'password123' },
@@ -80,8 +84,8 @@ describe('Controlador authController - registerUser y loginUser', () => {
       assert.deepEqual(res.body, { message: 'Correo electrónico y contraseña son obligatorios' });
     });
 
-    it('debe devolver 401 si el usuario no existe', async (t) => {
-      t.mock.method(User, 'findOne', async () => null);
+    it('debe devolver 401 si el usuario no existe', async () => {
+      vi.spyOn(User, 'findOne').mockImplementation((async () => null) as any);
 
       const req = createMockReq({
         body: { email: 'noexiste@ull.edu.es', password: 'password123' },
@@ -94,14 +98,14 @@ describe('Controlador authController - registerUser y loginUser', () => {
       assert.deepEqual(res.body, { message: 'Credenciales incorrectas' });
     });
 
-    it('debe devolver 401 si la contraseña no coincide', async (t) => {
-      t.mock.method(User, 'findOne', async () => ({
+    it('debe devolver 401 si la contraseña no coincide', async () => {
+      vi.spyOn(User, 'findOne').mockImplementation((async () => ({
         id: '653ad4f1234567890abcdef1',
         name: 'Ana',
         email: 'ana@ull.edu.es',
         trustScore: 100,
         comparePassword: async () => false,
-      }));
+      })) as any);
 
       const req = createMockReq({
         body: { email: 'ana@ull.edu.es', password: 'wrongpassword' },
@@ -114,16 +118,16 @@ describe('Controlador authController - registerUser y loginUser', () => {
       assert.deepEqual(res.body, { message: 'Credenciales incorrectas' });
     });
 
-    it('debe devolver 200 con token y usuario cuando las credenciales son válidas', async (t) => {
+    it('debe devolver 200 con token y usuario cuando las credenciales son válidas', async () => {
       const userId = new Types.ObjectId();
-      t.mock.method(User, 'findOne', async () => ({
+      vi.spyOn(User, 'findOne').mockImplementation((async () => ({
         _id: userId,
         id: userId.toString(),
         name: 'Ana',
         email: 'ana@ull.edu.es',
         trustScore: 98,
         comparePassword: async () => true,
-      }));
+      })) as any);
 
       const req = createMockReq({
         body: { email: 'ana@ull.edu.es', password: 'password123' },
