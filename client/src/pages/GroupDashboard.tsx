@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { Icon } from './AuthVisual'
 import { useAppDispatch, useAppSelector } from '../store'
-import { fetchGroupExpenses, type Expense } from '../store/slices/expensesSlice'
+import { fetchGroupBalances, fetchGroupExpenses, type Expense } from '../store/slices/expensesSlice'
+import GroupBalances from './GroupBalances'
 import type { Group, GroupMember } from '../store/slices/groupsSlice'
 import GroupExpensesChart, { type MemberPaid } from './GroupExpensesChart'
 import './GroupDashboard.css'
@@ -28,13 +29,22 @@ export default function GroupDashboard({ group, onBack }: GroupDashboardProps) {
   const token = useAppSelector((state) => state.auth.token)
   const currentUser = useAppSelector((state) => state.auth.user)
   const currentUserId = currentUser?.id ?? currentUser?._id ?? ''
-  const { items, listGroupId, loading, error } = useAppSelector((state) => state.expenses)
+  const { items, listGroupId, loading, error, balances, balancesLoading, balancesError } = useAppSelector(
+    (state) => state.expenses
+  )
 
   useEffect(() => {
     if (token) void dispatch(fetchGroupExpenses({ token, groupId: group._id }))
   }, [dispatch, token, group._id])
 
   const expenses = listGroupId === group._id ? items : []
+  const expensesCount = expenses.length
+
+  useEffect(() => {
+    if (token) void dispatch(fetchGroupBalances({ token, groupId: group._id }))
+  }, [dispatch, token, group._id, expensesCount])
+
+  const groupBalances = balances?.groupId === group._id ? balances : null
   const members = group.members.filter((m): m is GroupMember => typeof m !== 'string')
   const total = expenses.reduce((acc, expense) => acc + expense.amount, 0)
 
@@ -88,6 +98,16 @@ export default function GroupDashboard({ group, onBack }: GroupDashboardProps) {
           <dd>{group.members.length}</dd>
         </div>
       </dl>
+
+      {expenses.length > 0 && (
+        <GroupBalances
+          data={groupBalances}
+          loading={balancesLoading}
+          error={balancesError}
+          currentUserId={currentUserId}
+          formatMoney={formatMoney}
+        />
+      )}
 
       {expenses.length > 0 && <GroupExpensesChart data={chartData} formatMoney={formatMoney} />}
 

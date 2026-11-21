@@ -30,7 +30,27 @@ export interface NewExpense {
   participants: { userId: string; share: number }[]
 }
 
+export interface MemberBalance {
+  user: GroupMember
+  balance: number
+}
+
+export interface SettlementTransaction {
+  from: GroupMember
+  to: GroupMember
+  amount: number
+}
+
+export interface GroupBalances {
+  groupId: string
+  balances: MemberBalance[]
+  transactions: SettlementTransaction[]
+}
+
 interface ExpensesState {
+  balances: GroupBalances | null
+  balancesLoading: boolean
+  balancesError: string | null
   items: Expense[]
   listGroupId: string | null
   loading: boolean
@@ -41,6 +61,9 @@ interface ExpensesState {
 }
 
 const initialState: ExpensesState = {
+  balances: null,
+  balancesLoading: false,
+  balancesError: null,
   items: [],
   listGroupId: null,
   loading: false,
@@ -49,6 +72,37 @@ const initialState: ExpensesState = {
   createError: null,
   createMessage: null,
 }
+
+export const fetchGroupBalances = createAsyncThunk<
+  GroupBalances,
+  { token: string; groupId: string },
+  { rejectValue: string }
+>('expenses/fetchGroupBalances', async ({ token, groupId }, { rejectWithValue }) => {
+  try {
+    const response = await fetch(
+      `http://localhost:5000/api/expenses/simplified/${encodeURIComponent(groupId)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+
+    const data: unknown = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        return rejectWithValue('Tu sesión ha caducado. Vuelve a iniciar sesión.')
+      }
+      const message = (data as { message?: string } | null)?.message
+      return rejectWithValue(message ?? 'No se pudieron calcular los saldos del grupo.')
+    }
+
+    const result = data as Partial<GroupBalances> | null
+    if (!result || !Array.isArray(result.balances) || !Array.isArray(result.transactions)) {
+      return rejectWithValue('La respuesta del servidor no es válida.')
+    }
+    return { groupId, balances: result.balances, transactions: result.transactions }
+  } catch {
+    return rejectWithValue('No se pudo conectar con el servidor.')
+  }
+})
 
 export const fetchGroupExpenses = createAsyncThunk<
   Expense[],
@@ -136,6 +190,19 @@ const expensesSlice = createSlice({
         if (String(action.payload.groupId) === state.listGroupId) {
           state.items.unshift(action.payload)
         }
+      })
+      .addCase(fetchGroupBalances.pending, (state, action) => {
+        state.balancesLoading = true
+        state.balancesError = null
+        if (state.balances?.groupId !== action.meta.arg.groupId) state.balances = null
+      })
+      .addCase(fetchGroupBalances.fulfilled, (state, action) => {
+        state.balancesLoading = false
+        state.balances = action.payload
+      })
+      .addCase(fetchGroupBalances.rejected, (state, action) => {
+        state.balancesLoading = false
+        state.balancesError = action.payload ?? 'Error al cargar los saldos.'
       })
       .addCase(fetchGroupExpenses.pending, (state, action) => {
         state.loading = true
