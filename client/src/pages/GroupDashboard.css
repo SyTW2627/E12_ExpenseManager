@@ -1,3 +1,8 @@
+.group-dashboard {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
 .group-dashboard__back {
   display: inline-flex;
   align-items: center;
