@@ -3,6 +3,7 @@ import { Icon } from './AuthVisual'
 import { useAppDispatch, useAppSelector } from '../store'
 import { fetchGroupExpenses, type Expense } from '../store/slices/expensesSlice'
 import type { Group, GroupMember } from '../store/slices/groupsSlice'
+import GroupExpensesChart, { type MemberPaid } from './GroupExpensesChart'
 import './GroupDashboard.css'
 
 const formatMoney = (value: number) =>
@@ -44,6 +45,18 @@ export default function GroupDashboard({ group, onBack }: GroupDashboardProps) {
     return members.find((m) => m._id === id)?.name ?? 'Miembro'
   }
 
+  const paidByMember = new Map<string, MemberPaid>()
+  for (const member of members) {
+    paidByMember.set(member._id, { id: member._id, name: member._id === currentUserId ? `${member.name} (tú)` : member.name, paid: 0 })
+  }
+  for (const expense of expenses) {
+    const payerId = typeof expense.payerId === 'string' ? expense.payerId : expense.payerId._id
+    const entry = paidByMember.get(payerId) ?? { id: payerId, name: userName(expense.payerId), paid: 0 }
+    entry.paid = Math.round((entry.paid + expense.amount) * 100) / 100
+    paidByMember.set(payerId, entry)
+  }
+  const chartData = [...paidByMember.values()].sort((a, b) => b.paid - a.paid || a.name.localeCompare(b.name))
+
   return (
     <section className="dashboard-content" aria-labelledby="group-dashboard-title">
       <button type="button" className="group-dashboard__back" onClick={onBack}>
@@ -75,6 +88,8 @@ export default function GroupDashboard({ group, onBack }: GroupDashboardProps) {
           <dd>{group.members.length}</dd>
         </div>
       </dl>
+
+      {expenses.length > 0 && <GroupExpensesChart data={chartData} formatMoney={formatMoney} />}
 
       <h2 className="group-dashboard__subtitle">Gastos del grupo</h2>
 
