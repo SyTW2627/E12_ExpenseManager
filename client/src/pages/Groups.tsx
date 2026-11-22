@@ -1,7 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Icon } from './AuthVisual'
 import { useAppDispatch, useAppSelector } from '../store'
-import { clearJoinStatus, fetchMyGroups, joinGroup, type Group } from '../store/slices/groupsSlice'
+import {
+  clearCreateGroupStatus,
+  clearJoinStatus,
+  createGroup,
+  fetchMyGroups,
+  joinGroup,
+  type Group,
+} from '../store/slices/groupsSlice'
 import GroupDashboard from './GroupDashboard'
 import './Groups.css'
 
@@ -91,6 +98,85 @@ function GroupCard({ group, color, onOpen }: GroupCardProps) {
   )
 }
 
+/**
+ * Función que crea el formulario para crear un grupo.
+ * @param param0 - Token de autenticación del usuario.
+ * @returns El componente del formulario para crear un grupo.
+ */
+function CreateGroupForm({ token }: { token: string }) {
+  const dispatch = useAppDispatch()
+  const { creating, createError, createMessage } = useAppSelector((state) => state.groups)
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [localError, setLocalError] = useState('')
+
+  useEffect(() => () => { dispatch(clearCreateGroupStatus()) }, [dispatch])
+
+  const resetFeedback = () => {
+    if (localError) setLocalError('')
+    if (createError || createMessage) dispatch(clearCreateGroupStatus())
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const trimmedName = name.trim()
+    if (!trimmedName) return setLocalError('Escribe un nombre para el grupo.')
+
+    const result = await dispatch(createGroup({ token, name: trimmedName, description: description.trim() }))
+    if (createGroup.fulfilled.match(result)) {
+      setName('')
+      setDescription('')
+    }
+  }
+
+  const activeError = localError || createError
+
+  return (
+    <form className="group-form" onSubmit={handleSubmit} noValidate>
+      <header className="group-form__header">
+        <span className="group-form__icon" aria-hidden="true"><Icon name="users" size={22} /></span>
+        <div>
+          <h2>Nuevo grupo</h2>
+          <p>Crea un grupo e invita a otras personas con su código.</p>
+        </div>
+      </header>
+
+      <div className="group-field">
+        <label htmlFor="group-name">Nombre</label>
+        <input
+          id="group-name"
+          type="text"
+          placeholder="Ej. Viaje a Lisboa"
+          maxLength={60}
+          value={name}
+          onChange={(event) => { setName(event.target.value); resetFeedback() }}
+          disabled={creating}
+        />
+      </div>
+
+      <div className="group-field">
+        <label htmlFor="group-description">Descripción <span>(opcional)</span></label>
+        <textarea
+          id="group-description"
+          placeholder="¿Para qué es este grupo?"
+          rows={3}
+          maxLength={200}
+          value={description}
+          onChange={(event) => { setDescription(event.target.value); resetFeedback() }}
+          disabled={creating}
+        />
+      </div>
+
+      {activeError && <p className="group-form__feedback group-form__feedback--error" role="alert">{activeError}</p>}
+      {createMessage && <p className="group-form__feedback group-form__feedback--success" role="status">{createMessage}</p>}
+
+      <button className="group-form__submit" type="submit" disabled={creating}>
+        {creating ? 'Creando...' : 'Crear grupo'}
+      </button>
+    </form>
+  )
+}
+
 interface GroupsProps {
   groupId?: string
   onOpenGroup: (groupId: string) => void
@@ -142,33 +228,37 @@ export default function Groups({ groupId, onOpenGroup, onCloseGroup }: GroupsPro
       <h1 id="groups-title">Mis grupos</h1>
 
       {token && (
-        <form className="groups-join" onSubmit={handleJoin}>
-          <label htmlFor="invite-code">Unirse a un grupo</label>
-          <div className="groups-join__row">
-            <input
-              id="invite-code"
-              type="text"
-              placeholder="Código de invitación"
-              value={inviteCode}
-              onChange={(event) => {
-                setInviteCode(event.target.value.toUpperCase())
-                if (joinError || joinMessage) dispatch(clearJoinStatus())
-              }}
-              autoComplete="off"
-              spellCheck={false}
-              disabled={joining}
-            />
-            <button type="submit" disabled={joining || !inviteCode.trim()}>
-              {joining ? 'Uniéndote...' : 'Unirse'}
-            </button>
-          </div>
-          {joinError && (
-            <p className="groups-join__feedback groups-join__feedback--error" role="alert">{joinError}</p>
-          )}
-          {joinMessage && (
-            <p className="groups-join__feedback groups-join__feedback--success" role="status">{joinMessage}</p>
-          )}
-        </form>
+        <div className="groups-forms">
+          <CreateGroupForm token={token} />
+
+          <form className="groups-join" onSubmit={handleJoin}>
+            <label htmlFor="invite-code">Unirse a un grupo</label>
+            <div className="groups-join__row">
+              <input
+                id="invite-code"
+                type="text"
+                placeholder="Código de invitación"
+                value={inviteCode}
+                onChange={(event) => {
+                  setInviteCode(event.target.value.toUpperCase())
+                  if (joinError || joinMessage) dispatch(clearJoinStatus())
+                }}
+                autoComplete="off"
+                spellCheck={false}
+                disabled={joining}
+              />
+              <button type="submit" disabled={joining || !inviteCode.trim()}>
+                {joining ? 'Uniéndote...' : 'Unirse'}
+              </button>
+            </div>
+            {joinError && (
+              <p className="groups-join__feedback groups-join__feedback--error" role="alert">{joinError}</p>
+            )}
+            {joinMessage && (
+              <p className="groups-join__feedback groups-join__feedback--success" role="status">{joinMessage}</p>
+            )}
+          </form>
+        </div>
       )}
 
       {!token ? (

@@ -27,6 +27,9 @@ interface GroupsState {
   joining: boolean
   joinError: string | null
   joinMessage: string | null
+  creating: boolean
+  createError: string | null
+  createMessage: string | null
 }
 
 const initialState: GroupsState = {
@@ -36,6 +39,9 @@ const initialState: GroupsState = {
   joining: false,
   joinError: null,
   joinMessage: null,
+  creating: false,
+  createError: null,
+  createMessage: null,
 }
 
 // El token viene de authSlice. El backend deduce el usuario del JWT.
@@ -112,6 +118,44 @@ export const joinGroup = createAsyncThunk<JoinGroupResult, JoinGroupArgs, { reje
   }
 )
 
+interface CreateGroupArgs {
+  token: string
+  name: string
+  description: string
+}
+
+export const createGroup = createAsyncThunk<Group, CreateGroupArgs, { rejectValue: string }>(
+  'groups/createGroup',
+  async ({ token, name, description }, { rejectWithValue }) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name, ...(description ? { description } : {}) }),
+      })
+
+      const data: Partial<Group> & { message?: string } = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          return rejectWithValue('Tu sesión ha caducado. Vuelve a iniciar sesión.')
+        }
+        return rejectWithValue('No se pudo crear el grupo.')
+      }
+
+      if (!data._id) {
+        return rejectWithValue('La respuesta del servidor no es válida.')
+      }
+      return data as Group
+    } catch {
+      return rejectWithValue('No se pudo conectar con el servidor.')
+    }
+  }
+)
+
 const groupsSlice = createSlice({
   name: 'groups',
   initialState,
@@ -119,6 +163,10 @@ const groupsSlice = createSlice({
     clearJoinStatus: (state) => {
       state.joinError = null
       state.joinMessage = null
+    },
+    clearCreateGroupStatus: (state) => {
+      state.createError = null
+      state.createMessage = null
     },
   },
   extraReducers: (builder) => {
@@ -153,9 +201,23 @@ const groupsSlice = createSlice({
         state.joining = false
         state.joinError = action.payload ?? 'Error al unirse al grupo.'
       })
+      .addCase(createGroup.pending, (state) => {
+        state.creating = true
+        state.createError = null
+        state.createMessage = null
+      })
+      .addCase(createGroup.fulfilled, (state, action) => {
+        state.creating = false
+        state.createMessage = `Grupo "${action.payload.name}" creado correctamente.`
+        state.items.push(action.payload)
+      })
+      .addCase(createGroup.rejected, (state, action) => {
+        state.creating = false
+        state.createError = action.payload ?? 'Error al crear el grupo.'
+      })
       .addCase(logout, () => initialState)
   },
 })
 
-export const { clearJoinStatus } = groupsSlice.actions
+export const { clearJoinStatus, clearCreateGroupStatus } = groupsSlice.actions
 export default groupsSlice.reducer
