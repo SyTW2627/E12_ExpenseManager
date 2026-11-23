@@ -8,6 +8,7 @@ import { userRouter } from './routes/userRouter.js';
 import { groupRouter } from './routes/groupRouter.js';
 import { paymentRouter } from './routes/paymentRouter.js';
 import { expenseRouter } from './routes/expenseRouter.js';
+import { notificationRouter } from './routes/notificationRouter.js';
 
 // middleware de seguridad
 import { verifyToken } from './middlewares/authMiddleware.js';
@@ -25,6 +26,7 @@ app.use('/api', verifyToken, userRouter);
 app.use('/api', verifyToken, groupRouter);
 app.use('/api', verifyToken, paymentRouter);
 app.use('/api', verifyToken, expenseRouter);
+app.use('/api', verifyToken, notificationRouter);
 
 // Ruta de prueba (cambiar)
 app.get('/', (req, res) => {

@@ -6,6 +6,7 @@ import { User } from '../src/models/user.js';
 import { Group } from '../src/models/group.js';
 import { Expense } from '../src/models/expense.js';
 import { Payment } from '../src/models/payment.js';
+import { Notification } from '../src/models/notification.js';
 
 describe('Modelos de Mongoose - Validaciones y lógica interna', () => {
   describe('Modelo User', () => {
@@ -165,6 +166,38 @@ describe('Modelos de Mongoose - Validaciones y lógica interna', () => {
 
       await assert.rejects(async () => {
         await payment.validate();
+      });
+    });
+  });
+
+  describe('Modelo Notification', () => {
+    it('debe validar una notificación válida y asignar read = false por defecto', async () => {
+      const notification = new Notification({
+        userId: new Types.ObjectId(),
+        groupId: new Types.ObjectId(),
+        type: 'expense_created',
+        message: 'Ana añadió un gasto de 30 € en Viaje a Lisboa',
+      });
+
+      await notification.validate();
+      assert.equal(notification.read, false);
+      assert.equal(notification.type, 'expense_created');
+    });
+
+    it('debe fallar si faltan campos obligatorios o si el tipo no es válido', async () => {
+      const emptyNotification = new Notification({});
+      await assert.rejects(async () => {
+        await emptyNotification.validate();
+      });
+
+      const invalidTypeNotification = new Notification({
+        userId: new Types.ObjectId(),
+        groupId: new Types.ObjectId(),
+        type: 'tipo_invalido' as any,
+        message: 'Mensaje de prueba',
+      });
+      await assert.rejects(async () => {
+        await invalidTypeNotification.validate();
       });
     });
   });
