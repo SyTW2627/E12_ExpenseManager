@@ -86,6 +86,23 @@ describe('Modelos de Mongoose - Validaciones y lógica interna', () => {
       assert.equal((json as any).__v, undefined);
       assert.equal(json.name, 'Lucía');
     });
+
+    it('el hook pre-save debe hashear la contraseña si está modificada y no re-hashearla si no cambió', async () => {
+      const user = new User({
+        name: 'Mario',
+        email: 'mario@ull.edu.es',
+        password: 'password123',
+      });
+
+      await (User.schema as any).s.hooks.execPre('save', user, []);
+      assert.notEqual(user.password, 'password123');
+      assert.equal(await user.comparePassword('password123'), true);
+
+      const currentHash = user.password;
+      user.unmarkModified('password');
+      await (User.schema as any).s.hooks.execPre('save', user, []);
+      assert.equal(user.password, currentHash);
+    });
   });
 
   describe('Modelo Group', () => {
@@ -107,6 +124,22 @@ describe('Modelos de Mongoose - Validaciones y lógica interna', () => {
       await assert.rejects(async () => {
         await group.validate();
       });
+    });
+
+    it('el hook pre-save debe generar inviteCode si no existe y conservarlo si ya está definido', async () => {
+      const userId = new Types.ObjectId();
+      const group = new Group({
+        name: 'Viaje a Roma',
+        createdBy: userId,
+        members: [userId],
+      });
+
+      await (Group.schema as any).s.hooks.execPre('save', group, []);
+      assert.match(group.inviteCode, /^[0-9A-F]{6}$/);
+
+      const generatedCode = group.inviteCode;
+      await (Group.schema as any).s.hooks.execPre('save', group, []);
+      assert.equal(group.inviteCode, generatedCode);
     });
   });
 

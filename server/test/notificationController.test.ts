@@ -78,6 +78,19 @@ describe('Controlador notificationController', () => {
       assert.equal(res.statusCode, 200);
       assert.deepEqual(capturedFilter, { userId, read: false });
     });
+
+    it('debe devolver 500 si ocurre un error al consultar las notificaciones', async () => {
+      vi.spyOn(Notification, 'find').mockImplementation((() => {
+        throw new Error('DB error');
+      }) as any);
+
+      const req = createMockReq({ user: { id: userId } });
+      const res = createMockRes();
+
+      await getNotifications(req, res);
+
+      assert.equal(res.statusCode, 500);
+    });
   });
 
   describe('markAllNotificationsAsRead', () => {
@@ -115,6 +128,19 @@ describe('Controlador notificationController', () => {
         message: 'Todas las notificaciones marcadas como leídas',
         modifiedCount: 3,
       });
+    });
+
+    it('debe devolver 500 si updateMany falla', async () => {
+      vi.spyOn(Notification, 'updateMany').mockImplementation((async () => {
+        throw new Error('DB error');
+      }) as any);
+
+      const req = createMockReq({ user: { id: userId } });
+      const res = createMockRes();
+
+      await markAllNotificationsAsRead(req, res);
+
+      assert.equal(res.statusCode, 500);
     });
   });
 
@@ -229,6 +255,22 @@ describe('Controlador notificationController', () => {
       assert.equal(res.statusCode, 200);
       assert.equal(saveSpy.mock.calls.length, 0);
       assert.equal(populateSpy.mock.calls.length, 1);
+    });
+
+    it('debe devolver 500 si findById lanza un error', async () => {
+      vi.spyOn(Notification, 'findById').mockImplementation((async () => {
+        throw new Error('DB error');
+      }) as any);
+
+      const req = createMockReq({
+        user: { id: userId },
+        params: { id: new Types.ObjectId().toString() },
+      });
+      const res = createMockRes();
+
+      await markNotificationAsRead(req, res);
+
+      assert.equal(res.statusCode, 500);
     });
   });
 });

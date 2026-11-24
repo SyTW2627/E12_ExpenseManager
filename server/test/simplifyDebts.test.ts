@@ -87,6 +87,38 @@ describe('Utilidad simplifyDebts', () => {
     }
     assert.ok([...after.values()].every((v) => v === 0));
   });
+
+  it('ignora gastos sin participantes, con share total <= 0 o participants undefined', () => {
+    const balances = calculateBalances([
+      { payerId: A, amount: 50, participants: [] },
+      { payerId: B, amount: 40, participants: [{ userId: A, share: 0 }, { userId: B, share: 0 }] },
+      { payerId: C, amount: 30, participants: undefined as any },
+    ]);
+
+    assert.equal(balances.size, 0);
+    assert.deepEqual(simplifyDebts(balances), []);
+  });
+
+  it('resuelve correctamente casos con un deudor y varios acreedores o viceversa', () => {
+    // C debe 30 a A y 30 a B (un deudor, varios acreedores: debtor.cents > creditor.cents)
+    const manyCreditors = calculateBalances([
+      { payerId: A, amount: 30, participants: [{ userId: C, share: 100 }] },
+      { payerId: B, amount: 30, participants: [{ userId: C, share: 100 }] },
+    ]);
+    assert.deepEqual(simplifyDebts(manyCreditors), [
+      { from: C, to: A, amount: 30 },
+      { from: C, to: B, amount: 30 },
+    ]);
+
+    // A paga 90 entre A, B y C (un acreedor, varios deudores: creditor.cents > debtor.cents)
+    const manyDebtors = calculateBalances([
+      { payerId: A, amount: 90, participants: [{ userId: A, share: 1 }, { userId: B, share: 1 }, { userId: C, share: 1 }] },
+    ]);
+    assert.deepEqual(simplifyDebts(manyDebtors), [
+      { from: B, to: A, amount: 30 },
+      { from: C, to: A, amount: 30 },
+    ]);
+  });
 });
 
 describe('Controlador getSimplifiedExpenses', () => {
@@ -172,5 +204,42 @@ describe('Controlador getSimplifiedExpenses', () => {
         amount: 20,
       },
     ]);
+  });
+
+  it('permite acceso al creador aunque no esté en members y tolera usuarios no encontrados', async () => {
+    vi.spyOn(Group, 'findById').mockImplementation((async () => ({
+      _id: new Types.ObjectId(groupId),
+      createdBy: new Types.ObjectId(userA),
+      members: [new Types.ObjectId(userB)],
+    })) as any);
+    vi.spyOn(Expense, 'find').mockImplementation((async () => []) as any);
+    vi.spyOn(Payment, 'find').mockImplementation((async () => []) as any);
+    vi.spyOn(User, 'find').mockImplementation((async () => [
+      { _id: new Types.ObjectId(userA), name: 'Ana', email: 'ana@test.com' },
+    ]) as any);
+
+    const req = createMockReq({ user: { id: userA }, params: { groupId } });
+    const res = createMockRes();
+
+    await getSimplifiedExpenses(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body.balances, [
+      { user: { _id: userB, name: undefined, email: undefined }, balance: 0 },
+      { user: { _id: userA, name: 'Ana', email: 'ana@test.com' }, balance: 0 },
+    ]);
+  });
+
+  it('debe devolver 500 si ocurre un error inesperado', async () => {
+    vi.spyOn(Group, 'findById').mockImplementation((async () => {
+      throw new Error('DB error');
+    }) as any);
+
+    const req = createMockReq({ user: { id: userA }, params: { groupId } });
+    const res = createMockRes();
+
+    await getSimplifiedExpenses(req, res);
+
+    assert.equal(res.statusCode, 500);
   });
 });
