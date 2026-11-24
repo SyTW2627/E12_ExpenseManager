@@ -13,6 +13,7 @@ export default defineConfig({
       exclude: [
         'src/server.ts',
         'src/db/mongoose.ts',
+        'src/seed.ts',
         'src/routes/**',
       ],
     },

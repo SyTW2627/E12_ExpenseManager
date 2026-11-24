@@ -30,58 +30,6 @@ jobs:
         working-directory: server
         run: npm run coverage
 
-      - name: Publish coverage summary
-        if: always()
-        shell: bash
-        run: |
-          if [ ! -f server/coverage/lcov.info ]; then
-            echo "No coverage report found at server/coverage/lcov.info"
-            exit 0
-          fi
-
-          node -e '
-          const fs = require("node:fs");
-          const lcov = fs.readFileSync("server/coverage/lcov.info", "utf8");
-          const records = lcov.split("end_of_record").map((b) => b.trim()).filter(Boolean);
-          const pct = (hit, found) => (found === 0 ? "100.00%" : `${((hit / found) * 100).toFixed(2)}%`);
-
-          let totalLF = 0, totalLH = 0, totalBRF = 0, totalBRH = 0, totalFNF = 0, totalFNH = 0;
-          const rows = [];
-
-          for (const rec of records) {
-            const get = (key) => {
-              const m = rec.match(new RegExp(`^${key}:(.+)$`, "m"));
-              return m ? m[1].trim() : null;
-            };
-            const rawFile = get("SF");
-            if (!rawFile) continue;
-            const file = rawFile.replace(/\\/g, "/").replace(/^.*?src\//, "src/");
-            const lf = Number(get("LF") ?? 0), lh = Number(get("LH") ?? 0);
-            const brf = Number(get("BRF") ?? 0), brh = Number(get("BRH") ?? 0);
-            const fnf = Number(get("FNF") ?? 0), fnh = Number(get("FNH") ?? 0);
-            totalLF += lf; totalLH += lh;
-            totalBRF += brf; totalBRH += brh;
-            totalFNF += fnf; totalFNH += fnh;
-            rows.push(`| \`${file}\` | ${pct(lh, lf)} (${lh}/${lf}) | ${pct(brh, brf)} (${brh}/${brf}) | ${pct(fnh, fnf)} (${fnh}/${fnf}) |`);
-          }
-
-          rows.sort();
-          const md = [
-            "## Server Test Coverage Report",
-            "",
-            "| Archivo | Líneas | Ramas | Funciones |",
-            "| :--- | :---: | :---: | :---: |",
-            ...rows,
-            `| **Total** | **${pct(totalLH, totalLF)} (${totalLH}/${totalLF})** | **${pct(totalBRH, totalBRF)} (${totalBRH}/${totalBRF})** | **${pct(totalFNH, totalFNF)} (${totalFNH}/${totalFNF})** |`,
-            "",
-          ].join("\n");
-
-          if (process.env.GITHUB_STEP_SUMMARY) {
-            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
-          }
-          console.log(md);
-          '
-
       - name: Upload LCOV coverage report
         if: always()
         uses: actions/upload-artifact@v4
