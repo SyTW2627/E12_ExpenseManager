@@ -1,8 +1,9 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { logout } from './authSlice'
 import type { GroupMember } from './groupsSlice'
+import type { AllOrNothingResult } from '../../utils/allOrNothing'
 
-export type SplitMode = 'equal' | 'percentage' | 'roulette'
+export type SplitMode = 'equal' | 'percentage' | 'roulette' | 'allOrNothing'
 
 export interface ExpenseParticipant {
   userId: GroupMember | string
@@ -17,6 +18,7 @@ export interface Expense {
   amount: number
   splitMode: SplitMode | 'roulette'
   participants: ExpenseParticipant[]
+  allOrNothingResult?: AllOrNothingResult
   createdAt: string
   updatedAt: string
 }
@@ -27,7 +29,7 @@ export interface NewExpense {
   amount: number
   payerId: string
   splitMode: SplitMode
-  participants: { userId: string; share: number }[]
+  participants?: { userId: string; share: number }[]
 }
 
 export interface MemberBalance {
