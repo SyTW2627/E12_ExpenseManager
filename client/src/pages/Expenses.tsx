@@ -3,7 +3,19 @@ import { Icon } from './AuthVisual'
 import { useAppDispatch, useAppSelector } from '../store'
 import { fetchMyGroups, type GroupMember } from '../store/slices/groupsSlice'
 import { clearCreateStatus, createExpense, type SplitMode } from '../store/slices/expensesSlice'
+import RouletteWheel from './RouletteWheel'
+import { pickRandomIndex, rotationToLand, type RouletteCandidate } from '../utils/roulette'
 import './Expenses.css'
+
+interface RouletteSpin {
+  candidates: RouletteCandidate[]
+  winner: RouletteCandidate
+  amount: number
+  spinning: boolean
+}
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 // Mismo redondeo que el backend para el reparto equitativo
 const equalShare = (count: number) => Math.round((100 / count) * 100) / 100
@@ -29,6 +41,8 @@ export default function Expenses() {
   const [chosenParticipants, setChosenParticipants] = useState<string[] | null>(null)
   const [percentages, setPercentages] = useState<Record<string, string>>({})
   const [localError, setLocalError] = useState('')
+  const [rouletteRotation, setRouletteRotation] = useState(0)
+  const [spin, setSpin] = useState<RouletteSpin | null>(null)
 
   const needsGroups = groups.length === 0
 
@@ -53,6 +67,7 @@ export default function Expenses() {
   const resetFeedback = () => {
     if (localError) setLocalError('')
     if (createError || createMessage) dispatch(clearCreateStatus())
+    if (spin && !spin.spinning) setSpin(null)
   }
 
   // Al cambiar de grupo se vuelve a los valores por defecto
@@ -72,7 +87,16 @@ export default function Expenses() {
   const amountValue = Number(amount.replace(',', '.'))
   const percentageTotal = selected.reduce((acc, id) => acc + (Number(percentages[id]) || 0), 0)
   const shareFor = (id: string) =>
-    splitMode === 'equal' ? equalShare(selected.length) : Number(percentages[id]) || 0
+    splitMode === 'equal'
+      ? equalShare(selected.length)
+      : splitMode === 'percentage'
+        ? Number(percentages[id]) || 0
+        : 0
+
+  const liveCandidates: RouletteCandidate[] = members
+    .filter((m) => selected.includes(m._id))
+    .map((m) => ({ id: m._id, name: m._id === currentUserId ? `${m.name} (tú)` : m.name }))
+  const wheelCandidates = spin?.candidates ?? liveCandidates
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -82,9 +106,17 @@ export default function Expenses() {
     if (!concept.trim()) return setLocalError('Escribe un concepto para el gasto.')
     if (!(amountValue > 0)) return setLocalError('El importe debe ser mayor que 0.')
     if (selected.length === 0) return setLocalError('Selecciona al menos un participante.')
+    if (splitMode === 'roulette' && selected.length < 2) {
+      return setLocalError('Selecciona al menos dos participantes para la ruleta.')
+    }
     if (splitMode === 'percentage' && Math.abs(percentageTotal - 100) > 0.1) {
       return setLocalError(`Los porcentajes deben sumar 100% (ahora suman ${percentageTotal}%).`)
     }
+
+    const candidates = liveCandidates
+    const winnerIndex = splitMode === 'roulette' ? pickRandomIndex(candidates.length) : -1
+    const winner = candidates[winnerIndex]
+    setSpin(null)
 
     const result = await dispatch(createExpense({
       token,
@@ -94,7 +126,9 @@ export default function Expenses() {
         amount: Math.round(amountValue * 100) / 100,
         payerId,
         splitMode,
-        participants: selected.map((userId) => ({ userId, share: shareFor(userId) })),
+        participants: winner
+          ? [{ userId: winner.id, share: 100 }]
+          : selected.map((userId) => ({ userId, share: shareFor(userId) })),
       },
     }))
 
@@ -102,10 +136,18 @@ export default function Expenses() {
       setConcept('')
       setAmount('')
       setPercentages({})
+
+      if (winner) {
+        setRouletteRotation((current) => rotationToLand(current, winnerIndex, candidates.length))
+        setSpin({ candidates, winner, amount: result.payload.amount, spinning: !prefersReducedMotion() })
+      }
     }
   }
 
+  const finishSpin = () => setSpin((current) => (current ? { ...current, spinning: false } : current))
+
   const activeError = localError || createError
+  const isSpinning = spin?.spinning ?? false
 
   return (
     <section className="dashboard-content" aria-labelledby="expenses-title">
@@ -182,7 +224,7 @@ export default function Expenses() {
             <fieldset className="expense-field expense-split">
               <legend>Reparto</legend>
               <div className="expense-split__options">
-                {([['equal', 'A partes iguales'], ['percentage', 'Por porcentaje']] as const).map(([mode, label]) => (
+                {([['equal', 'A partes iguales'], ['percentage', 'Por porcentaje'], ['roulette', 'Ruleta']] as const).map(([mode, label]) => (
                   <label key={mode} className={`expense-split__option${splitMode === mode ? ' is-active' : ''}`}>
                     <input
                       type="radio"
@@ -190,7 +232,7 @@ export default function Expenses() {
                       value={mode}
                       checked={splitMode === mode}
                       onChange={() => { setSplitMode(mode); resetFeedback() }}
-                      disabled={creating}
+                      disabled={creating || isSpinning}
                     />
                     {label}
                   </label>
@@ -238,7 +280,11 @@ export default function Expenses() {
                     )}
 
                     <span className="expense-participant__amount">
-                      {checked && amountValue > 0 ? formatMoney((amountValue * share) / 100) : '—'}
+                      {checked && splitMode === 'roulette'
+                        ? '¿?'
+                        : checked && amountValue > 0
+                          ? formatMoney((amountValue * share) / 100)
+                          : '—'}
                     </span>
                   </li>
                 )
@@ -246,11 +292,40 @@ export default function Expenses() {
             </ul>
           </fieldset>
 
-          {activeError && <p className="expense-feedback expense-feedback--error" role="alert">{activeError}</p>}
-          {createMessage && <p className="expense-feedback expense-feedback--success" role="status">{createMessage}</p>}
+          {(splitMode === 'roulette' || spin) && (
+            <section className="expense-roulette" aria-label="Ruleta">
+              <p className="expense-roulette__intro">
+                La ruleta elige al azar a una sola persona de los participantes, que asumirá el gasto completo.
+              </p>
+              <RouletteWheel
+                candidates={wheelCandidates}
+                rotation={rouletteRotation}
+                spinning={isSpinning}
+                onSpinEnd={finishSpin}
+              />
+              <p className="expense-roulette__result" role="status" aria-live="polite">
+                {isSpinning
+                  ? 'Girando...'
+                  : spin
+                    ? <>Le ha tocado a <strong>{spin.winner.name}</strong>: asume {formatMoney(spin.amount)}.</>
+                    : ''}
+              </p>
+            </section>
+          )}
 
-          <button className="expense-submit" type="submit" disabled={creating}>
-            {creating ? 'Guardando...' : 'Añadir gasto'}
+          {activeError && <p className="expense-feedback expense-feedback--error" role="alert">{activeError}</p>}
+          {createMessage && !isSpinning && (
+            <p className="expense-feedback expense-feedback--success" role="status">{createMessage}</p>
+          )}
+
+          <button className="expense-submit" type="submit" disabled={creating || isSpinning}>
+            {creating
+              ? 'Guardando...'
+              : isSpinning
+                ? 'Girando la ruleta...'
+                : splitMode === 'roulette'
+                  ? 'Girar la ruleta y añadir gasto'
+                  : 'Añadir gasto'}
           </button>
         </form>
       )}

@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { logout } from './authSlice'
 import type { GroupMember } from './groupsSlice'
 
-export type SplitMode = 'equal' | 'percentage'
+export type SplitMode = 'equal' | 'percentage' | 'roulette'
 
 export interface ExpenseParticipant {
   userId: GroupMember | string
