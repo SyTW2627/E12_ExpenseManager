@@ -10,7 +10,8 @@ interface ExpenseDocumentInterface extends Document {
   payerId: Types.ObjectId;
   concept: string;
   amount: number;
-  splitMode: 'equal' | 'percentage' | 'roulette';
+  splitMode: 'equal' | 'percentage' | 'roulette' | 'allOrNothing';
+  allOrNothingResult?: 'payerPaysAll' | 'othersPayAll';
   participants: Participant[];
   createdAt: Date;
   updatedAt: Date;
@@ -39,8 +40,12 @@ const ExpenseSchema = new Schema<ExpenseDocumentInterface>({
   },
   splitMode: {
     type: String,
-    enum: ['equal', 'percentage', 'roulette'],
+    enum: ['equal', 'percentage', 'roulette', 'allOrNothing'],
     default: 'equal',
+  },
+  allOrNothingResult: {
+    type: String,
+    enum: ['payerPaysAll', 'othersPayAll'],
   },
   participants: [{
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },

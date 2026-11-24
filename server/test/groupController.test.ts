@@ -44,6 +44,42 @@ describe('Controlador groupController', () => {
       assert.equal(res.body.createdBy.toString(), creatorId);
       assert.ok(res.body.members.some((m: any) => m.toString() === creatorId));
     });
+
+    it('no debe duplicar createdBy en members si ya venía incluido en el body', async () => {
+      vi.spyOn(Group.prototype, 'save').mockImplementation((async function (this: any) {
+        return this;
+      }) as any);
+      vi.spyOn(Group.prototype, 'populate').mockImplementation((async function (this: any) {
+        return this;
+      }) as any);
+
+      const req = createMockReq({
+        user: { id: creatorId },
+        body: { name: 'Piso', members: [creatorId, memberId] },
+      });
+      const res = createMockRes();
+
+      await createGroup(req, res);
+
+      assert.equal(res.statusCode, 201);
+      assert.equal(res.body.members.length, 2);
+    });
+
+    it('debe devolver 400 si falla el guardado del grupo', async () => {
+      vi.spyOn(Group.prototype, 'save').mockImplementation((async () => {
+        throw new Error('Validation failed');
+      }) as any);
+
+      const req = createMockReq({
+        user: { id: creatorId },
+        body: { description: 'Sin nombre' },
+      });
+      const res = createMockRes();
+
+      await createGroup(req, res);
+
+      assert.equal(res.statusCode, 400);
+    });
   });
 
   describe('joinGroup', () => {
@@ -104,6 +140,19 @@ describe('Controlador groupController', () => {
       assert.equal(res.body.message, 'Te has unido al grupo correctamente');
       assert.equal(mockGroup.members.length, 2);
     });
+
+    it('debe devolver 500 si Group.findOne lanza un error', async () => {
+      vi.spyOn(Group, 'findOne').mockImplementation((async () => {
+        throw new Error('DB error');
+      }) as any);
+
+      const req = createMockReq({ user: { id: memberId }, body: { inviteCode: 'LISBOA' } });
+      const res = createMockRes();
+
+      await joinGroup(req, res);
+
+      assert.equal(res.statusCode, 500);
+    });
   });
 
   describe('getGroups', () => {
@@ -131,9 +180,41 @@ describe('Controlador groupController', () => {
       assert.equal(res.statusCode, 200);
       assert.equal(res.body.length, 1);
     });
+
+    it('debe devolver 500 si Group.find falla', async () => {
+      vi.spyOn(Group, 'find').mockImplementation((() => {
+        throw new Error('DB error');
+      }) as any);
+
+      const req = createMockReq({ user: { id: creatorId } });
+      const res = createMockRes();
+
+      await getGroups(req, res);
+
+      assert.equal(res.statusCode, 500);
+    });
   });
 
   describe('getGroupById', () => {
+    it('debe devolver 404 si el grupo no existe', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((() => ({
+        populate: () => ({
+          populate: async () => null,
+        }),
+      })) as any);
+
+      const req = createMockReq({
+        user: { id: creatorId },
+        params: { id: new Types.ObjectId().toString() },
+      });
+      const res = createMockRes();
+
+      await getGroupById(req, res);
+
+      assert.equal(res.statusCode, 404);
+      assert.deepEqual(res.body, { message: 'Grupo no encontrado' });
+    });
+
     it('debe devolver 403 si el usuario no es miembro ni creador del grupo', async () => {
       vi.spyOn(Group, 'findById').mockImplementation((() => ({
         populate: () => ({
@@ -156,13 +237,13 @@ describe('Controlador groupController', () => {
       assert.equal(res.statusCode, 403);
     });
 
-    it('debe devolver 200 si el usuario es miembro del grupo', async () => {
+    it('debe devolver 200 si el usuario es miembro del grupo (poblado o como ObjectId)', async () => {
       vi.spyOn(Group, 'findById').mockImplementation((() => ({
         populate: () => ({
           populate: async () => ({
             name: 'Grupo Compartido',
             createdBy: { _id: new Types.ObjectId(creatorId) },
-            members: [{ _id: new Types.ObjectId(memberId) }],
+            members: [new Types.ObjectId(memberId)],
           }),
         }),
       })) as any);
@@ -178,9 +259,78 @@ describe('Controlador groupController', () => {
       assert.equal(res.statusCode, 200);
       assert.equal(res.body.name, 'Grupo Compartido');
     });
+
+    it('debe devolver 200 si el usuario es el creador aunque no figure en members', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((() => ({
+        populate: () => ({
+          populate: async () => ({
+            name: 'Grupo del Creador',
+            createdBy: { _id: new Types.ObjectId(creatorId) },
+            members: [{ _id: new Types.ObjectId(memberId) }],
+          }),
+        }),
+      })) as any);
+
+      const req = createMockReq({
+        user: { id: creatorId },
+        params: { id: new Types.ObjectId().toString() },
+      });
+      const res = createMockRes();
+
+      await getGroupById(req, res);
+
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.body.name, 'Grupo del Creador');
+    });
+
+    it('debe devolver 500 si Group.findById falla', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((() => {
+        throw new Error('DB error');
+      }) as any);
+
+      const req = createMockReq({
+        user: { id: creatorId },
+        params: { id: new Types.ObjectId().toString() },
+      });
+      const res = createMockRes();
+
+      await getGroupById(req, res);
+
+      assert.equal(res.statusCode, 500);
+    });
   });
 
   describe('updateGroup y deleteGroup', () => {
+    it('updateGroup debe devolver 400 si se intenta actualizar un campo no permitido', async () => {
+      const req = createMockReq({
+        user: { id: creatorId },
+        params: { id: new Types.ObjectId().toString() },
+        body: { inviteCode: 'HACKED' },
+      });
+      const res = createMockRes();
+
+      await updateGroup(req, res);
+
+      assert.equal(res.statusCode, 400);
+      assert.deepEqual(res.body, { message: 'Actualización no permitida' });
+    });
+
+    it('updateGroup debe devolver 404 si el grupo no existe', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => null) as any);
+
+      const req = createMockReq({
+        user: { id: creatorId },
+        params: { id: new Types.ObjectId().toString() },
+        body: { name: 'Nuevo Nombre' },
+      });
+      const res = createMockRes();
+
+      await updateGroup(req, res);
+
+      assert.equal(res.statusCode, 404);
+      assert.deepEqual(res.body, { message: 'Grupo no encontrado' });
+    });
+
     it('updateGroup debe devolver 403 si quien intenta editar no es el creador', async () => {
       vi.spyOn(Group, 'findById').mockImplementation((async () => ({
         createdBy: new Types.ObjectId(creatorId),
@@ -196,6 +346,89 @@ describe('Controlador groupController', () => {
       await updateGroup(req, res);
 
       assert.equal(res.statusCode, 403);
+    });
+
+    it('updateGroup debe actualizar y devolver 200 cuando lo solicita su creador', async () => {
+      const mockGroup: any = {
+        name: 'Viejo',
+        createdBy: new Types.ObjectId(creatorId),
+        set(updates: any) {
+          Object.assign(this, updates);
+        },
+        save: async function () {
+          return this;
+        },
+        populate: async function () {
+          return this;
+        },
+      };
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
+
+      const req = createMockReq({
+        user: { id: creatorId },
+        params: { id: new Types.ObjectId().toString() },
+        body: { name: 'Actualizado', description: 'Nueva desc' },
+      });
+      const res = createMockRes();
+
+      await updateGroup(req, res);
+
+      assert.equal(res.statusCode, 200);
+      assert.equal(mockGroup.name, 'Actualizado');
+    });
+
+    it('updateGroup debe devolver 400 si save lanza un error', async () => {
+      const mockGroup: any = {
+        createdBy: new Types.ObjectId(creatorId),
+        set() {},
+        save: async () => {
+          throw new Error('Validation error');
+        },
+      };
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
+
+      const req = createMockReq({
+        user: { id: creatorId },
+        params: { id: new Types.ObjectId().toString() },
+        body: { name: '' },
+      });
+      const res = createMockRes();
+
+      await updateGroup(req, res);
+
+      assert.equal(res.statusCode, 400);
+    });
+
+    it('deleteGroup debe devolver 404 si el grupo no existe', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => null) as any);
+
+      const req = createMockReq({
+        user: { id: creatorId },
+        params: { id: new Types.ObjectId().toString() },
+      });
+      const res = createMockRes();
+
+      await deleteGroup(req, res);
+
+      assert.equal(res.statusCode, 404);
+      assert.deepEqual(res.body, { message: 'Grupo no encontrado' });
+    });
+
+    it('deleteGroup debe devolver 403 si quien intenta eliminar no es el creador', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => ({
+        createdBy: new Types.ObjectId(creatorId),
+      })) as any);
+
+      const req = createMockReq({
+        user: { id: memberId },
+        params: { id: new Types.ObjectId().toString() },
+      });
+      const res = createMockRes();
+
+      await deleteGroup(req, res);
+
+      assert.equal(res.statusCode, 403);
+      assert.deepEqual(res.body, { message: 'Solo el creador puede eliminar este grupo' });
     });
 
     it('deleteGroup debe eliminar el grupo y devolver 200 cuando lo solicita su creador', async () => {
@@ -218,6 +451,22 @@ describe('Controlador groupController', () => {
 
       assert.equal(res.statusCode, 200);
       assert.equal(deleted, true);
+    });
+
+    it('deleteGroup debe devolver 500 si Group.findById falla', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => {
+        throw new Error('DB error');
+      }) as any);
+
+      const req = createMockReq({
+        user: { id: creatorId },
+        params: { id: new Types.ObjectId().toString() },
+      });
+      const res = createMockRes();
+
+      await deleteGroup(req, res);
+
+      assert.equal(res.statusCode, 500);
     });
   });
 });

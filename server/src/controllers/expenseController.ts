@@ -6,6 +6,7 @@ import { Payment } from '../models/payment.js';
 import { User } from '../models/user.js';
 import type { AuthRequest } from '../middlewares/authMiddleware.js';
 import { calculateBalances, simplifyDebts } from '../utils/simplifyDebts.js';
+import { playAllOrNothing, type AllOrNothingResult } from '../utils/allOrNothing.js';
 
 /**
  * Devuelve los gastos simplificados de un grupo: el saldo neto de cada miembro
@@ -90,9 +91,27 @@ export const createExpense = async (req: AuthRequest, res: Response) => {
       return res.status(400).send({ message: 'El pagador debe ser miembro del grupo' });
     }
 
-    // Si no se envían participantes, por defecto participan todos los miembros del grupo a partes iguales
     let finalParticipants = participants;
-    if (!Array.isArray(finalParticipants) || finalParticipants.length === 0) {
+    let allOrNothingResult: AllOrNothingResult | undefined;
+
+    if (splitMode === 'allOrNothing') {
+      if (finalPayerId.toString() !== userId) {
+        return res.status(403).send({ message: 'Solo quien paga el gasto puede jugar a Todo o nada' });
+      }
+      if (participants !== undefined) {
+        return res.status(400).send({ message: 'En Todo o nada los participantes se asignan automáticamente' });
+      }
+
+      const memberIds = [...new Set([...group.members.map((m) => m.toString()), group.createdBy.toString()])];
+      if (memberIds.length < 2) {
+        return res.status(400).send({ message: 'Todo o nada necesita al menos dos miembros en el grupo' });
+      }
+
+      const outcome = playAllOrNothing(userId!, memberIds);
+      finalParticipants = outcome.participants;
+      allOrNothingResult = outcome.result;
+    } else if (!Array.isArray(finalParticipants) || finalParticipants.length === 0) {
+      // Si no se envían participantes, por defecto participan todos los miembros del grupo a partes iguales
       const share = Math.round((100 / group.members.length) * 100) / 100;
       finalParticipants = group.members.map((memberId) => ({
         userId: memberId,
@@ -122,6 +141,7 @@ export const createExpense = async (req: AuthRequest, res: Response) => {
       amount,
       splitMode,
       participants: finalParticipants,
+      ...(allOrNothingResult ? { allOrNothingResult } : {}),
     });
 
     await expense.save();
@@ -233,6 +253,15 @@ export const updateExpense = async (req: AuthRequest, res: Response) => {
 
     if (!isPayer && !isGroupCreator) {
       return res.status(403).send({ message: 'Solo quien registró el gasto o el creador del grupo puede modificarlo' });
+    }
+
+    // El resultado de Todo o nada no se puede cambiar: solo se editan el concepto y el importe
+    if (expense.splitMode === 'allOrNothing') {
+      if (updates.some((update) => !['concept', 'amount'].includes(update))) {
+        return res.status(400).send({ message: 'En un gasto de Todo o nada solo se puede editar el concepto y el importe' });
+      }
+    } else if (req.body.splitMode === 'allOrNothing') {
+      return res.status(400).send({ message: 'Todo o nada solo se puede elegir al crear el gasto' });
     }
 
     // Si se actualiza el pagador, validar que pertenezca al grupo

@@ -71,6 +71,26 @@ describe('Controlador authController - registerUser y loginUser', () => {
       assert.equal(res.body.user.email, 'ana@ull.edu.es');
       assert.equal(res.body.user.trustScore, 100);
     });
+
+    it('debe devolver 500 si ocurre un error inesperado en la base de datos', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(User, 'findOne').mockImplementation((async () => {
+        throw new Error('DB connection lost');
+      }) as any);
+
+      const req = createMockReq({
+        body: { name: 'Ana', email: 'ana@ull.edu.es', password: 'password123' },
+      });
+      const res = createMockRes();
+
+      await registerUser(req, res);
+
+      assert.equal(res.statusCode, 500);
+      assert.deepEqual(res.body, {
+        message: 'Error interno del servidor',
+        error: 'DB connection lost',
+      });
+    });
   });
 
   describe('loginUser', () => {
@@ -141,6 +161,26 @@ describe('Controlador authController - registerUser y loginUser', () => {
       assert.ok(typeof res.body.token === 'string' && res.body.token.length > 0);
       assert.equal(res.body.user.name, 'Ana');
       assert.equal(res.body.user.trustScore, 98);
+    });
+
+    it('debe devolver 500 si ocurre un error inesperado durante el login', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(User, 'findOne').mockImplementation((async () => {
+        throw new Error('DB timeout');
+      }) as any);
+
+      const req = createMockReq({
+        body: { email: 'ana@ull.edu.es', password: 'password123' },
+      });
+      const res = createMockRes();
+
+      await loginUser(req, res);
+
+      assert.equal(res.statusCode, 500);
+      assert.deepEqual(res.body, {
+        message: 'Error interno del servidor',
+        error: 'DB timeout',
+      });
     });
   });
 });
