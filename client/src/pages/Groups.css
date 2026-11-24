@@ -267,11 +267,21 @@
 }
 
 /* ---------- Formularios de grupos ---------- */
-.groups-forms {
-  margin-top: 28px;
+.groups-page {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
   align-items: start;
+  column-gap: 28px;
+}
+.groups-page > h1 { grid-column: 1 / -1; }
+.groups-page > :not(h1):not(.groups-forms) { grid-column: 1; grid-row: 2; margin-top: 28px; max-width: none; }
+
+.groups-forms {
+  grid-column: 2;
+  grid-row: 2;
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
 }
 
@@ -344,5 +354,6 @@
 .group-form__submit:disabled { opacity: .6; cursor: not-allowed; }
 
 @media (max-width: 980px) {
-  .groups-forms { grid-template-columns: minmax(0, 1fr); }
+  .groups-page { grid-template-columns: minmax(0, 1fr); }
+  .groups-forms { grid-column: 1; grid-row: 3; }
 }
