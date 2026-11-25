@@ -3,12 +3,6 @@ export interface RouletteCandidate {
   name: string
 }
 
-export const pickRandomIndex = (count: number) => {
-  const values = new Uint32Array(1)
-  crypto.getRandomValues(values)
-  return values[0]! % count
-}
-
 export const rotationToLand = (currentRotation: number, winnerIndex: number, count: number) => {
   const segment = 360 / count
   const center = (winnerIndex + 0.5) * segment
