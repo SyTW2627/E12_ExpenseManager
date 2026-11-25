@@ -6,16 +6,26 @@ import Register from './pages/Register'
 
 // Redux controla el acceso; las rutas solo deciden qué sección se muestra.
 const currentPath = () => window.location.pathname.replace(/\/+$/, '') || '/'
-const privatePaths = ['/dashboard', '/grupos', '/gastos']
+const privatePaths = ['/dashboard', '/grupos', '/gastos', '/notificaciones']
 
-type PrivatePath = '/dashboard' | '/grupos' | '/gastos'
+type PrivatePath = '/dashboard' | '/grupos' | '/gastos' | '/notificaciones'
 
 const groupPathPattern = /^\/grupos\/([^/]+)$/
 const groupIdFromPath = (path: string) => groupPathPattern.exec(path)?.[1]
 const isPrivatePath = (path: string) => privatePaths.includes(path) || groupIdFromPath(path) !== undefined
 
-const sectionByPath = { '/dashboard': 'home', '/grupos': 'groups', '/gastos': 'expenses' } as const
-const pathBySection = { home: '/dashboard', groups: '/grupos', expenses: '/gastos' } as const
+const sectionByPath = {
+  '/dashboard': 'home',
+  '/grupos': 'groups',
+  '/gastos': 'expenses',
+  '/notificaciones': 'notifications',
+} as const
+const pathBySection = {
+  home: '/dashboard',
+  groups: '/grupos',
+  expenses: '/gastos',
+  notifications: '/notificaciones',
+} as const
 
 function App() {
   const [path, setPath] = useState(currentPath)
@@ -46,7 +56,15 @@ function App() {
 
   useEffect(() => {
     const pageTitle = isAuthenticated
-      ? path === '/grupos' ? 'Mis grupos' : groupIdFromPath(path) ? 'Grupo' : path === '/gastos' ? 'Gastos' : 'Inicio'
+      ? path === '/grupos'
+        ? 'Mis grupos'
+        : groupIdFromPath(path)
+          ? 'Grupo'
+          : path === '/gastos'
+            ? 'Gastos'
+            : path === '/notificaciones'
+              ? 'Notificaciones'
+              : 'Inicio'
       : path === '/register' ? 'Crear cuenta' : 'Iniciar sesión'
 
     document.title = `${pageTitle} | Cuentas Claras`
