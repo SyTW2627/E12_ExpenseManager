@@ -3,7 +3,28 @@ import { Icon } from './AuthVisual'
 import { useAppDispatch, useAppSelector } from '../store'
 import { fetchMyGroups, type GroupMember } from '../store/slices/groupsSlice'
 import { clearCreateStatus, createExpense, type SplitMode } from '../store/slices/expensesSlice'
+import RouletteWheel from './RouletteWheel'
+import { rotationToLand, type RouletteCandidate } from '../utils/roulette'
+import CoinFlip from './CoinFlip'
+import { coinRotationToLand, type AllOrNothingResult } from '../utils/allOrNothing'
 import './Expenses.css'
+
+interface CoinToss {
+  result: AllOrNothingResult
+  amount: number
+  othersCount: number
+  flipping: boolean
+}
+
+interface RouletteSpin {
+  candidates: RouletteCandidate[]
+  winner: RouletteCandidate
+  amount: number
+  spinning: boolean
+}
+
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 // Mismo redondeo que el backend para el reparto equitativo
 const equalShare = (count: number) => Math.round((100 / count) * 100) / 100
@@ -29,6 +50,10 @@ export default function Expenses() {
   const [chosenParticipants, setChosenParticipants] = useState<string[] | null>(null)
   const [percentages, setPercentages] = useState<Record<string, string>>({})
   const [localError, setLocalError] = useState('')
+  const [rouletteRotation, setRouletteRotation] = useState(0)
+  const [spin, setSpin] = useState<RouletteSpin | null>(null)
+  const [coinRotation, setCoinRotation] = useState(0)
+  const [toss, setToss] = useState<CoinToss | null>(null)
 
   const needsGroups = groups.length === 0
 
@@ -48,11 +73,16 @@ export default function Expenses() {
   )
   const memberIds = members.map((m) => m._id)
   const selected = chosenParticipants ?? memberIds
-  const payerId = chosenPayerId || (memberIds.includes(currentUserId) ? currentUserId : memberIds[0] ?? '')
+  const isAllOrNothing = splitMode === 'allOrNothing'
+  const payerId = isAllOrNothing
+    ? currentUserId
+    : chosenPayerId || (memberIds.includes(currentUserId) ? currentUserId : memberIds[0] ?? '')
 
   const resetFeedback = () => {
     if (localError) setLocalError('')
     if (createError || createMessage) dispatch(clearCreateStatus())
+    if (spin && !spin.spinning) setSpin(null)
+    if (toss && !toss.flipping) setToss(null)
   }
 
   // Al cambiar de grupo se vuelve a los valores por defecto
@@ -72,7 +102,16 @@ export default function Expenses() {
   const amountValue = Number(amount.replace(',', '.'))
   const percentageTotal = selected.reduce((acc, id) => acc + (Number(percentages[id]) || 0), 0)
   const shareFor = (id: string) =>
-    splitMode === 'equal' ? equalShare(selected.length) : Number(percentages[id]) || 0
+    splitMode === 'equal'
+      ? equalShare(selected.length)
+      : splitMode === 'percentage'
+        ? Number(percentages[id]) || 0
+        : 0
+
+  const liveCandidates: RouletteCandidate[] = members
+    .filter((m) => selected.includes(m._id))
+    .map((m) => ({ id: m._id, name: m._id === currentUserId ? `${m.name} (tú)` : m.name }))
+  const wheelCandidates = spin?.candidates ?? liveCandidates
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -81,10 +120,23 @@ export default function Expenses() {
     if (!group) return setLocalError('Elige un grupo.')
     if (!concept.trim()) return setLocalError('Escribe un concepto para el gasto.')
     if (!(amountValue > 0)) return setLocalError('El importe debe ser mayor que 0.')
-    if (selected.length === 0) return setLocalError('Selecciona al menos un participante.')
+    if (isAllOrNothing && !memberIds.includes(currentUserId)) {
+      return setLocalError('Solo puedes jugar a Todo o nada en un grupo del que formas parte.')
+    }
+    if (isAllOrNothing && !selected.some((id) => id !== currentUserId)) {
+      return setLocalError('Elige al menos a otra persona además de ti para jugar a Todo o nada.')
+    }
+    if (!isAllOrNothing && selected.length === 0) return setLocalError('Selecciona al menos un participante.')
+    if (splitMode === 'roulette' && selected.length < 2) {
+      return setLocalError('Selecciona al menos dos participantes para la ruleta.')
+    }
     if (splitMode === 'percentage' && Math.abs(percentageTotal - 100) > 0.1) {
       return setLocalError(`Los porcentajes deben sumar 100% (ahora suman ${percentageTotal}%).`)
     }
+
+    const candidates = liveCandidates
+    setSpin(null)
+    setToss(null)
 
     const result = await dispatch(createExpense({
       token,
@@ -102,13 +154,36 @@ export default function Expenses() {
       setConcept('')
       setAmount('')
       setPercentages({})
+
+      const loser = result.payload.participants[0]?.userId
+      const winnerIndex = candidates.findIndex((c) => c.id === (typeof loser === 'string' ? loser : loser?._id))
+      const winner = candidates[winnerIndex]
+      if (splitMode === 'roulette' && winner) {
+        setRouletteRotation((current) => rotationToLand(current, winnerIndex, candidates.length))
+        setSpin({ candidates, winner, amount: result.payload.amount, spinning: !prefersReducedMotion() })
+      }
+
+      const coinResult = result.payload.allOrNothingResult
+      if (isAllOrNothing && coinResult) {
+        setCoinRotation((current) => coinRotationToLand(current, coinResult))
+        setToss({
+          result: coinResult,
+          amount: result.payload.amount,
+          othersCount: result.payload.participants.length,
+          flipping: !prefersReducedMotion(),
+        })
+      }
     }
   }
 
+  const finishSpin = () => setSpin((current) => (current ? { ...current, spinning: false } : current))
+  const finishFlip = () => setToss((current) => (current ? { ...current, flipping: false } : current))
+
   const activeError = localError || createError
+  const isSpinning = (spin?.spinning ?? false) || (toss?.flipping ?? false)
 
   return (
-    <section className="dashboard-content" aria-labelledby="expenses-title">
+    <section className="dashboard-content expenses-page" aria-labelledby="expenses-title">
       <h1 id="expenses-title">Gastos</h1>
 
       {!token ? (
@@ -143,7 +218,7 @@ export default function Expenses() {
 
             <div className="expense-field">
               <label htmlFor="expense-payer">Pagado por</label>
-              <select id="expense-payer" value={payerId} onChange={(e) => { setChosenPayerId(e.target.value); resetFeedback() }} disabled={creating}>
+              <select id="expense-payer" value={payerId} onChange={(e) => { setChosenPayerId(e.target.value); resetFeedback() }} disabled={creating || isAllOrNothing}>
                 {members.map((m) => (
                   <option key={m._id} value={m._id}>{m._id === currentUserId ? `${m.name} (tú)` : m.name}</option>
                 ))}
@@ -182,7 +257,7 @@ export default function Expenses() {
             <fieldset className="expense-field expense-split">
               <legend>Reparto</legend>
               <div className="expense-split__options">
-                {([['equal', 'A partes iguales'], ['percentage', 'Por porcentaje']] as const).map(([mode, label]) => (
+                {([['equal', 'A partes iguales'], ['percentage', 'Por porcentaje'], ['roulette', 'Ruleta'], ['allOrNothing', 'Todo o nada']] as const).map(([mode, label]) => (
                   <label key={mode} className={`expense-split__option${splitMode === mode ? ' is-active' : ''}`}>
                     <input
                       type="radio"
@@ -190,7 +265,7 @@ export default function Expenses() {
                       value={mode}
                       checked={splitMode === mode}
                       onChange={() => { setSplitMode(mode); resetFeedback() }}
-                      disabled={creating}
+                      disabled={creating || isSpinning}
                     />
                     {label}
                   </label>
@@ -211,12 +286,13 @@ export default function Expenses() {
 
             <ul>
               {members.map((m) => {
-                const checked = selected.includes(m._id)
+                const locked = isAllOrNothing && m._id === currentUserId
+                const checked = locked || selected.includes(m._id)
                 const share = checked ? shareFor(m._id) : 0
                 return (
                   <li key={m._id} className={`expense-participant${checked ? ' is-checked' : ''}`}>
                     <label className="expense-participant__name">
-                      <input type="checkbox" checked={checked} onChange={() => toggleParticipant(m._id)} disabled={creating} />
+                      <input type="checkbox" checked={checked} onChange={() => toggleParticipant(m._id)} disabled={creating || locked} />
                       {m._id === currentUserId ? `${m.name} (tú)` : m.name}
                     </label>
 
@@ -238,7 +314,11 @@ export default function Expenses() {
                     )}
 
                     <span className="expense-participant__amount">
-                      {checked && amountValue > 0 ? formatMoney((amountValue * share) / 100) : '—'}
+                      {checked && (splitMode === 'roulette' || isAllOrNothing)
+                        ? '¿?'
+                        : checked && amountValue > 0
+                          ? formatMoney((amountValue * share) / 100)
+                          : '—'}
                     </span>
                   </li>
                 )
@@ -246,11 +326,63 @@ export default function Expenses() {
             </ul>
           </fieldset>
 
-          {activeError && <p className="expense-feedback expense-feedback--error" role="alert">{activeError}</p>}
-          {createMessage && <p className="expense-feedback expense-feedback--success" role="status">{createMessage}</p>}
+          {(splitMode === 'roulette' || spin) && (
+            <section className="expense-roulette" aria-label="Ruleta">
+              <p className="expense-roulette__intro">
+                La ruleta elige al azar a una sola persona de los participantes, que asumirá el gasto completo.
+              </p>
+              <RouletteWheel
+                candidates={wheelCandidates}
+                rotation={rouletteRotation}
+                spinning={isSpinning}
+                onSpinEnd={finishSpin}
+              />
+              <p className="expense-roulette__result" role="status" aria-live="polite">
+                {isSpinning
+                  ? 'Girando...'
+                  : spin
+                    ? <>Le ha tocado a <strong>{spin.winner.name}</strong>: asume {formatMoney(spin.amount)}.</>
+                    : ''}
+              </p>
+            </section>
+          )}
 
-          <button className="expense-submit" type="submit" disabled={creating}>
-            {creating ? 'Guardando...' : 'Añadir gasto'}
+          {(isAllOrNothing || toss) && (
+            <section className="expense-roulette" aria-label="Todo o nada">
+              <p className="expense-roulette__intro">
+                Lanza la moneda: con cara pagas tú todo el gasto; con cruz se lo reparten a partes iguales los demás
+                participantes que hayas elegido.
+              </p>
+              <CoinFlip rotation={coinRotation} flipping={toss?.flipping ?? false} onFlipEnd={finishFlip} />
+              <p className="expense-roulette__result" role="status" aria-live="polite">
+                {toss?.flipping
+                  ? 'Lanzando la moneda...'
+                  : toss?.result === 'payerPaysAll'
+                    ? <>¡Cara! <strong>Pagas tú</strong> los {formatMoney(toss.amount)}.</>
+                    : toss
+                      ? <>¡Cruz! <strong>Los otros {toss.othersCount}</strong> se reparten {formatMoney(toss.amount)}.</>
+                      : ''}
+              </p>
+            </section>
+          )}
+
+          {activeError && <p className="expense-feedback expense-feedback--error" role="alert">{activeError}</p>}
+          {createMessage && !isSpinning && (
+            <p className="expense-feedback expense-feedback--success" role="status">{createMessage}</p>
+          )}
+
+          <button className="expense-submit" type="submit" disabled={creating || isSpinning}>
+            {creating
+              ? 'Guardando...'
+              : toss?.flipping
+                ? 'Lanzando la moneda...'
+                : isSpinning
+                  ? 'Girando la ruleta...'
+                  : splitMode === 'roulette'
+                    ? 'Girar la ruleta y añadir gasto'
+                    : isAllOrNothing
+                      ? 'Lanzar la moneda y añadir gasto'
+                      : 'Añadir gasto'}
           </button>
         </form>
       )}

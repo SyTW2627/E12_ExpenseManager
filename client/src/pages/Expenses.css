@@ -113,7 +113,7 @@
 .expense-split legend { padding: 0; margin-bottom: 8px; }
 .expense-split__options {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 4px;
   padding: 4px;
   border-radius: 12px;
@@ -210,6 +210,21 @@
 .expense-feedback { margin: 18px 0 0; padding: 12px 14px; border-radius: 10px; font-size: 13px; }
 .expense-feedback--error { background: #fdecea; color: #c0392b; }
 .expense-feedback--success { background: #e7f6ee; color: #1e8e5a; }
+
+.dashboard-content.expenses-page > * { margin-left: auto; margin-right: auto; }
+.dashboard-content.expenses-page > h1 { max-width: 720px; }
+
+.expense-roulette {
+  margin-top: 20px;
+  padding: 18px 16px 16px;
+  border: 1px solid #e3e6f0;
+  border-radius: 14px;
+  background: #fafbff;
+  text-align: center;
+}
+.expense-roulette__intro { margin: 0 0 14px; font-size: 13px; line-height: 1.5; color: #69738d; }
+.expense-roulette__result { min-height: 22px; margin: 14px 0 0; font-size: 15px; color: #1a2340; }
+.expense-roulette__result strong { color: #7661d7; }
 
 .expense-submit {
   width: 100%;

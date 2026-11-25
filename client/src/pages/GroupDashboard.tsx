@@ -17,6 +17,7 @@ const SPLIT_LABELS: Record<Expense['splitMode'], string> = {
   equal: 'A partes iguales',
   percentage: 'Por porcentaje',
   roulette: 'Ruleta',
+  allOrNothing: 'Todo o nada',
 }
 
 interface GroupDashboardProps {

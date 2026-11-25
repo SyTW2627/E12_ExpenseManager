@@ -224,13 +224,11 @@ export default function Groups({ groupId, onOpenGroup, onCloseGroup }: GroupsPro
   }
 
   return (
-    <section className="dashboard-content" aria-labelledby="groups-title">
+    <section className="dashboard-content groups-page" aria-labelledby="groups-title">
       <h1 id="groups-title">Mis grupos</h1>
 
       {token && (
         <div className="groups-forms">
-          <CreateGroupForm token={token} />
-
           <form className="groups-join" onSubmit={handleJoin}>
             <label htmlFor="invite-code">Unirse a un grupo</label>
             <div className="groups-join__row">
@@ -258,6 +256,8 @@ export default function Groups({ groupId, onOpenGroup, onCloseGroup }: GroupsPro
               <p className="groups-join__feedback groups-join__feedback--success" role="status">{joinMessage}</p>
             )}
           </form>
+
+          <CreateGroupForm token={token} />
         </div>
       )}
 
