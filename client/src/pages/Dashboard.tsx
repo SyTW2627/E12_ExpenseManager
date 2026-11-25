@@ -6,6 +6,7 @@ import { fetchNotifications } from '../store/slices/notificationsSlice'
 import Groups from './Groups'
 import Expenses from './Expenses'
 import Notifications from './Notifications'
+import Home from './Home'
 import './Dashboard.css'
 
 type Section = 'home' | 'groups' | 'expenses' | 'notifications'
@@ -93,9 +94,7 @@ export default function Dashboard({ section, groupId, onNavigate, onOpenGroup }:
       ) : section === 'notifications' ? (
         <Notifications onOpenGroup={onOpenGroup} />
       ) : (
-        <section className="dashboard-content" aria-label="Inicio">
-          <h1>Hola, {firstName}</h1>
-        </section>
+        <Home firstName={firstName} />
       )}
     </main>
   )

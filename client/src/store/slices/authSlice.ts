@@ -16,6 +16,11 @@ export interface AuthState {
   loading: boolean;
   error: string | null;
   notice: string | null;
+  profileSaving: boolean;
+  profileError: string | null;
+  profileNotice: string | null;
+  deletingAccount: boolean;
+  deleteError: string | null;
 }
 
 // Recuperar sesión en el navegador si existe
@@ -29,7 +34,14 @@ const initialState: AuthState = {
   loading: false,
   error: null,
   notice: null,
+  profileSaving: false,
+  profileError: null,
+  profileNotice: null,
+  deletingAccount: false,
+  deleteError: null,
 };
+
+const USERS_URL = 'http://localhost:5000/api/users';
 
 // Acción para iniciar sesión
 export const loginUser = createAsyncThunk(
@@ -87,6 +99,54 @@ export const registerUser = createAsyncThunk(
   }
 );
 
+// PATCH /api/users/:id. El backend solo permite cambiar el nombre y el correo.
+export const updateProfile = createAsyncThunk<
+  { name: string; email: string },
+  { token: string; userId: string; name: string; email: string },
+  { rejectValue: string }
+>('auth/updateProfile', async ({ token, userId, name, email }, { rejectWithValue }) => {
+  try {
+    const response = await fetch(`${USERS_URL}/${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name, email }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      if (response.status === 401) return rejectWithValue('Tu sesión ha caducado. Vuelve a iniciar sesión.');
+      if (data.code === 11000) return rejectWithValue('Ese correo electrónico ya está en uso.');
+      return rejectWithValue(data.message ?? 'No se pudo actualizar el perfil.');
+    }
+
+    return { name: data.name ?? name, email: data.email ?? email };
+  } catch {
+    return rejectWithValue('No se pudo conectar con el servidor.');
+  }
+});
+
+// DELETE /api/users/:id. Después hay que cerrar la sesión con logout().
+export const deleteAccount = createAsyncThunk<void, { token: string; userId: string }, { rejectValue: string }>(
+  'auth/deleteAccount',
+  async ({ token, userId }, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${USERS_URL}/${encodeURIComponent(userId)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 401) return rejectWithValue('Tu sesión ha caducado. Vuelve a iniciar sesión.');
+        return rejectWithValue(data.message ?? 'No se pudo eliminar la cuenta.');
+      }
+    } catch {
+      return rejectWithValue('No se pudo conectar con el servidor.');
+    }
+  }
+);
+
 export const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -99,10 +159,18 @@ export const authSlice = createSlice({
       state.isAuthenticated = false;
       state.error = null;
       state.notice = null;
+      state.profileError = null;
+      state.profileNotice = null;
+      state.deleteError = null;
     },
     clearFeedback: (state) => {
       state.error = null;
       state.notice = null;
+    },
+    clearProfileFeedback: (state) => {
+      state.profileError = null;
+      state.profileNotice = null;
+      state.deleteError = null;
     },
   },
   extraReducers: (builder) => {
@@ -147,8 +215,39 @@ export const authSlice = createSlice({
         state.loading = false;
         state.error = (action.payload as string) || 'No se pudo registrar la cuenta';
       });
+
+    // Perfil
+    builder
+      .addCase(updateProfile.pending, (state) => {
+        state.profileSaving = true;
+        state.profileError = null;
+        state.profileNotice = null;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.profileSaving = false;
+        if (state.user) {
+          state.user = { ...state.user, ...action.payload };
+          localStorage.setItem('user', JSON.stringify(state.user));
+        }
+        state.profileNotice = 'Perfil actualizado correctamente.';
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.profileSaving = false;
+        state.profileError = action.payload ?? 'No se pudo actualizar el perfil.';
+      })
+      .addCase(deleteAccount.pending, (state) => {
+        state.deletingAccount = true;
+        state.deleteError = null;
+      })
+      .addCase(deleteAccount.fulfilled, (state) => {
+        state.deletingAccount = false;
+      })
+      .addCase(deleteAccount.rejected, (state, action) => {
+        state.deletingAccount = false;
+        state.deleteError = action.payload ?? 'No se pudo eliminar la cuenta.';
+      });
   },
 });
 
-export const { logout, clearFeedback } = authSlice.actions;
+export const { logout, clearFeedback, clearProfileFeedback } = authSlice.actions;
 export default authSlice.reducer;
