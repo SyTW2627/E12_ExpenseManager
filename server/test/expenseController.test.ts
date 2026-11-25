@@ -103,7 +103,7 @@ describe('Controlador expenseController', () => {
       assert.deepEqual(res.body, { message: 'Solo quien paga el gasto puede jugar a Todo o nada' });
     });
 
-    it('en modo allOrNothing, debe devolver 400 si se envían participants manualmente', async () => {
+    it('en modo allOrNothing, debe devolver 400 si solo participa quien paga', async () => {
       vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
 
       const req = createMockReq({
@@ -121,9 +121,42 @@ describe('Controlador expenseController', () => {
       await createExpense(req, res);
 
       assert.equal(res.statusCode, 400);
-      assert.deepEqual(res.body, {
-        message: 'En Todo o nada los participantes se asignan automáticamente',
+      assert.deepEqual(res.body, { message: 'Todo o nada necesita al menos dos miembros en el grupo' });
+    });
+
+    it('en modo allOrNothing, debe devolver 400 si un participante no pertenece al grupo', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
+
+      const req = createMockReq({
+        user: { id: userA },
+        body: { groupId, concept: 'Ronda', amount: 30, splitMode: 'allOrNothing', participants: [{ userId: outsider, share: 0 }] },
       });
+      const res = createMockRes();
+
+      await createExpense(req, res);
+
+      assert.equal(res.statusCode, 400);
+      assert.deepEqual(res.body, { message: 'Todos los participantes deben pertenecer al grupo' });
+    });
+
+    it('en modo allOrNothing, solo juegan quien paga y los participantes elegidos', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => mockGroup) as any);
+      vi.spyOn(Expense.prototype, 'save').mockImplementation((async function (this: any) { return this; }) as any);
+      vi.spyOn(Expense.prototype, 'populate').mockImplementation((async function (this: any) { return this; }) as any);
+
+      for (let i = 0; i < 20; i++) {
+        const req = createMockReq({
+          user: { id: userA },
+          body: { groupId, concept: 'Ronda', amount: 30, splitMode: 'allOrNothing', participants: [{ userId: userB, share: 0 }] },
+        });
+        const res = createMockRes();
+
+        await createExpense(req, res);
+
+        assert.equal(res.statusCode, 201);
+        const ids = res.body.participants.map((p: any) => p.userId.toString());
+        assert.deepEqual(ids, res.body.allOrNothingResult === 'payerPaysAll' ? [userA] : [userB]);
+      }
     });
 
     it('en modo allOrNothing, debe devolver 400 si el grupo tiene menos de 2 miembros', async () => {

@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import { randomInt } from 'node:crypto';
 import { isValidObjectId } from 'mongoose';
 import { Expense } from '../models/expense.js';
 import { Group } from '../models/group.js';
@@ -98,16 +99,18 @@ export const createExpense = async (req: AuthRequest, res: Response) => {
       if (finalPayerId.toString() !== userId) {
         return res.status(403).send({ message: 'Solo quien paga el gasto puede jugar a Todo o nada' });
       }
-      if (participants !== undefined) {
-        return res.status(400).send({ message: 'En Todo o nada los participantes se asignan automáticamente' });
-      }
-
       const memberIds = [...new Set([...group.members.map((m) => m.toString()), group.createdBy.toString()])];
-      if (memberIds.length < 2) {
+      const playerIds = participants === undefined
+        ? memberIds
+        : [...new Set([userId!, ...(Array.isArray(participants) ? participants : []).map((p: { userId: unknown }) => String(p.userId))])];
+      if (playerIds.some((id) => !memberIds.includes(id))) {
+        return res.status(400).send({ message: 'Todos los participantes deben pertenecer al grupo' });
+      }
+      if (playerIds.length < 2) {
         return res.status(400).send({ message: 'Todo o nada necesita al menos dos miembros en el grupo' });
       }
 
-      const outcome = playAllOrNothing(userId!, memberIds);
+      const outcome = playAllOrNothing(userId!, playerIds);
       finalParticipants = outcome.participants;
       allOrNothingResult = outcome.result;
     } else if (!Array.isArray(finalParticipants) || finalParticipants.length === 0) {
@@ -132,6 +135,14 @@ export const createExpense = async (req: AuthRequest, res: Response) => {
           return res.status(400).send({ message: 'La suma de los porcentajes debe ser 100%' });
         }
       }
+    }
+
+    if (splitMode === 'roulette') {
+      const candidates: string[] = [...new Set<string>(finalParticipants.map((p: { userId: unknown }) => String(p.userId)))];
+      if (candidates.length < 2) {
+        return res.status(400).send({ message: 'La ruleta necesita al menos dos participantes' });
+      }
+      finalParticipants = [{ userId: candidates[randomInt(candidates.length)], share: 100 }];
     }
 
     const expense = new Expense({
@@ -262,6 +273,10 @@ export const updateExpense = async (req: AuthRequest, res: Response) => {
       }
     } else if (req.body.splitMode === 'allOrNothing') {
       return res.status(400).send({ message: 'Todo o nada solo se puede elegir al crear el gasto' });
+    }
+
+    if (expense.splitMode === 'roulette' ? updates.some((u) => !['concept', 'amount'].includes(u)) : req.body.splitMode === 'roulette') {
+      return res.status(400).send({ message: 'El reparto de la ruleta no se puede modificar' });
     }
 
     // Si se actualiza el pagador, validar que pertenezca al grupo
