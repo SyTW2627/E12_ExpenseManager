@@ -3,12 +3,14 @@ import { useDispatch, useSelector, type TypedUseSelectorHook } from 'react-redux
 import authReducer from './slices/authSlice';
 import groupsReducer from './slices/groupsSlice';
 import expensesReducer from './slices/expensesSlice';
+import notificationsReducer from './slices/notificationsSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     groups: groupsReducer,
     expenses: expensesReducer,
+    notifications: notificationsReducer,
   },
 });
 

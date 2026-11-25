@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import './Login.css'
 
-type IconName = 'user' | 'mail' | 'lock' | 'eye' | 'eye-off' | 'arrow' | 'check' | 'users' | 'sparkles' | 'chart' | 'receipt'
+type IconName = 'user' | 'mail' | 'lock' | 'eye' | 'eye-off' | 'arrow' | 'check' | 'users' | 'sparkles' | 'chart' | 'receipt' | 'bell'
 
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
@@ -16,6 +16,7 @@ export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
     sparkles: <><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" /><path d="m19 17 .6 1.4L21 19l-1.4.6L19 21l-.6-1.4L17 19l1.4-.6L19 17Z" /></>,
     receipt: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" /><path d="M9 8h6M9 12h6M9 16h3" /></>,
     chart: <><rect x="3" y="3" width="18" height="18" rx="4" /><path d="m7 15 3-4 3 2 4-5" /></>,
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></>,
   }
 
   return (
