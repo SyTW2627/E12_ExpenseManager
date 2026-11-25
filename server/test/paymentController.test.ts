@@ -1,8 +1,9 @@
-import { describe, it, afterEach, vi } from 'vitest';
+import { describe, it, beforeEach, afterEach, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { Types } from 'mongoose';
 import { Payment } from '../src/models/payment.js';
 import { Group } from '../src/models/group.js';
+import { Notification } from '../src/models/notification.js';
 import {
   createPayment,
   getPayments,
@@ -13,6 +14,10 @@ import {
 import { createMockReq, createMockRes } from './helpers/mockExpress.js';
 
 describe('Controlador paymentController', () => {
+  beforeEach(() => {
+    vi.spyOn(Notification, 'create').mockResolvedValue({} as any);
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -515,6 +520,83 @@ describe('Controlador paymentController', () => {
       await deletePayment(req, res);
 
       assert.equal(res.statusCode, 500);
+    });
+  });
+
+  describe('notificaciones automáticas en pagos', () => {
+    it('createPayment debe crear una notificación payment_created para el receptor', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => ({
+        createdBy: new Types.ObjectId(payerId),
+        members: [new Types.ObjectId(payerId), new Types.ObjectId(receiverId)],
+      })) as any);
+      vi.spyOn(Payment.prototype, 'save').mockImplementation((async function (this: any) {
+        return this;
+      }) as any);
+      vi.spyOn(Payment.prototype, 'populate').mockImplementation((async function (this: any) {
+        Object.defineProperty(this, 'payerId', {
+          value: { _id: new Types.ObjectId(payerId), name: 'Carlos Pérez', email: 'carlos@gmail.com' },
+          configurable: true,
+        });
+        return this;
+      }) as any);
+
+      const createSpy = vi.spyOn(Notification, 'create').mockResolvedValue({} as any);
+
+      const req = createMockReq({
+        user: { id: payerId },
+        body: { groupId, receiverId, amount: 50 },
+      });
+      const res = createMockRes();
+
+      await createPayment(req, res);
+
+      assert.equal(res.statusCode, 201);
+      assert.equal(createSpy.mock.calls.length, 1);
+      const doc = createSpy.mock.calls[0]?.[0] as any;
+      assert.equal(doc.userId, receiverId);
+      assert.equal(doc.groupId, groupId);
+      assert.equal(doc.type, 'payment_created');
+      assert.match(doc.message, /Carlos Pérez ha registrado un pago/);
+    });
+
+    it('updatePayment debe crear una notificación payment_completed para el pagador cuando el receptor confirma', async () => {
+      const mockPayment: any = {
+        groupId: new Types.ObjectId(groupId),
+        payerId: new Types.ObjectId(payerId),
+        receiverId: new Types.ObjectId(receiverId),
+        amount: 35,
+        status: 'pending',
+        save: async function () {
+          return this;
+        },
+        populate: async function (field: string) {
+          if (field === 'payerId') {
+            this.payerId = { _id: new Types.ObjectId(payerId), name: 'Carlos Pérez' };
+          }
+          if (field === 'receiverId') {
+            this.receiverId = { _id: new Types.ObjectId(receiverId), name: 'Ana García' };
+          }
+          return this;
+        },
+      };
+      vi.spyOn(Payment, 'findById').mockImplementation((async () => mockPayment) as any);
+      const createSpy = vi.spyOn(Notification, 'create').mockResolvedValue({} as any);
+
+      const req = createMockReq({
+        user: { id: receiverId },
+        params: { id: new Types.ObjectId().toString() },
+        body: { status: 'completed' },
+      });
+      const res = createMockRes();
+
+      await updatePayment(req, res);
+
+      assert.equal(res.statusCode, 200);
+      assert.equal(createSpy.mock.calls.length, 1);
+      const doc = createSpy.mock.calls[0]?.[0] as any;
+      assert.equal(doc.userId, payerId);
+      assert.equal(doc.type, 'payment_completed');
+      assert.match(doc.message, /Ana García ha confirmado tu pago/);
     });
   });
 });

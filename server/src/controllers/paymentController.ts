@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import { isValidObjectId } from 'mongoose';
 import { Payment } from '../models/payment.js';
 import { Group } from '../models/group.js';
+import { Notification } from '../models/notification.js';
 import type { AuthRequest } from '../middlewares/authMiddleware.js';
 
 export const createPayment = async (req: AuthRequest, res: Response) => {
@@ -46,6 +47,20 @@ export const createPayment = async (req: AuthRequest, res: Response) => {
     await payment.save();
     await payment.populate('payerId', 'name email');
     await payment.populate('receiverId', 'name email');
+
+    const payerName = (payment.payerId as unknown as { name?: string })?.name || 'Un miembro';
+    const formattedAmount = `${Number(payment.amount).toFixed(2).replace('.', ',')} €`;
+
+    try {
+      await Notification.create({
+        userId: receiverId,
+        groupId,
+        type: 'payment_created',
+        message: `${payerName} ha registrado un pago de ${formattedAmount} para ti. Confírmalo cuando lo recibas.`,
+      });
+    } catch {
+      // No bloquear la creación del pago si falla el aviso
+    }
 
     res.status(201).send(payment);
   } catch (error) {
@@ -139,6 +154,23 @@ export const updatePayment = async (req: AuthRequest, res: Response) => {
 
     await payment.populate('payerId', 'name email');
     await payment.populate('receiverId', 'name email');
+
+    const payerIdStr =
+      (payment.payerId as unknown as { _id?: { toString(): string } })._id?.toString() ??
+      payment.payerId.toString();
+    const receiverName = (payment.receiverId as unknown as { name?: string })?.name || 'El receptor';
+    const formattedAmount = `${Number(payment.amount).toFixed(2).replace('.', ',')} €`;
+
+    try {
+      await Notification.create({
+        userId: payerIdStr,
+        groupId: payment.groupId,
+        type: 'payment_completed',
+        message: `${receiverName} ha confirmado tu pago de ${formattedAmount}.`,
+      });
+    } catch {
+      // No bloquear la confirmación del pago si falla el aviso
+    }
 
     res.status(200).send(payment);
   } catch (error) {

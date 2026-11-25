@@ -1,8 +1,9 @@
-import { describe, it, afterEach, vi } from 'vitest';
+import { describe, it, beforeEach, afterEach, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { Types } from 'mongoose';
 import { Expense } from '../src/models/expense.js';
 import { Group } from '../src/models/group.js';
+import { Notification } from '../src/models/notification.js';
 import {
   createExpense,
   getExpenses,
@@ -13,6 +14,10 @@ import {
 import { createMockReq, createMockRes } from './helpers/mockExpress.js';
 
 describe('Controlador expenseController', () => {
+  beforeEach(() => {
+    vi.spyOn(Notification, 'insertMany').mockResolvedValue([] as any);
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -935,6 +940,81 @@ describe('Controlador expenseController', () => {
       await deleteExpense(req, res);
 
       assert.equal(res.statusCode, 500);
+    });
+  });
+
+  describe('notificaciones automáticas en createExpense', () => {
+    it('debe crear notificaciones expense_created para el resto de miembros del grupo (excluyendo al creador)', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => ({
+        ...mockGroup,
+        name: 'Viaje a Lisboa',
+      })) as any);
+      vi.spyOn(Expense.prototype, 'save').mockImplementation((async function (this: any) {
+        return this;
+      }) as any);
+      vi.spyOn(Expense.prototype, 'populate').mockImplementation((async function (this: any) {
+        Object.defineProperty(this, 'payerId', {
+          value: { _id: new Types.ObjectId(userA), name: 'Ana García', email: 'ana@gmail.com' },
+          configurable: true,
+        });
+        return this;
+      }) as any);
+
+      const insertSpy = vi.spyOn(Notification, 'insertMany').mockResolvedValue([] as any);
+
+      const req = createMockReq({
+        user: { id: userA },
+        body: { groupId, concept: 'Vuelos', amount: 120 },
+      });
+      const res = createMockRes();
+
+      await createExpense(req, res);
+
+      assert.equal(res.statusCode, 201);
+      assert.equal(insertSpy.mock.calls.length, 1);
+      const insertedDocs = insertSpy.mock.calls[0]?.[0] as any[];
+      assert.equal(insertedDocs.length, 2);
+      assert.deepEqual(
+        insertedDocs.map((d) => d.userId),
+        [userB, userC]
+      );
+      assert.equal(insertedDocs[0].type, 'expense_created');
+      assert.equal(insertedDocs[0].groupId, groupId);
+      assert.match(insertedDocs[0].message, /Ana García ha añadido "Vuelos"/);
+    });
+
+    it('debe crear notificaciones all_or_nothing al jugar a Todo o nada', async () => {
+      vi.spyOn(Group, 'findById').mockImplementation((async () => ({
+        ...mockGroup,
+        name: 'Piso compartido',
+      })) as any);
+      vi.spyOn(Expense.prototype, 'save').mockImplementation((async function (this: any) {
+        return this;
+      }) as any);
+      vi.spyOn(Expense.prototype, 'populate').mockImplementation((async function (this: any) {
+        Object.defineProperty(this, 'payerId', {
+          value: { _id: new Types.ObjectId(userA), name: 'Ana García', email: 'ana@gmail.com' },
+          configurable: true,
+        });
+        return this;
+      }) as any);
+
+      const insertSpy = vi.spyOn(Notification, 'insertMany').mockResolvedValue([] as any);
+
+      const req = createMockReq({
+        user: { id: userA },
+        body: { groupId, concept: 'Pizza', amount: 25, splitMode: 'allOrNothing' },
+      });
+      const res = createMockRes();
+
+      await createExpense(req, res);
+
+      assert.equal(res.statusCode, 201);
+      assert.equal(insertSpy.mock.calls.length, 1);
+      const insertedDocs = insertSpy.mock.calls[0]?.[0] as any[];
+      assert.equal(insertedDocs.length, 2);
+      assert.equal(insertedDocs[0].type, 'all_or_nothing');
+      assert.match(insertedDocs[0].message, /Todo o nada con "Pizza"/);
     });
   });
 });
