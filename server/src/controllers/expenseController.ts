@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import { randomInt } from 'node:crypto';
 import { isValidObjectId } from 'mongoose';
 import { Expense } from '../models/expense.js';
 import { Group } from '../models/group.js';
@@ -134,6 +135,14 @@ export const createExpense = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    if (splitMode === 'roulette') {
+      const candidates: string[] = [...new Set<string>(finalParticipants.map((p: { userId: unknown }) => String(p.userId)))];
+      if (candidates.length < 2) {
+        return res.status(400).send({ message: 'La ruleta necesita al menos dos participantes' });
+      }
+      finalParticipants = [{ userId: candidates[randomInt(candidates.length)], share: 100 }];
+    }
+
     const expense = new Expense({
       groupId,
       payerId: finalPayerId,
@@ -262,6 +271,10 @@ export const updateExpense = async (req: AuthRequest, res: Response) => {
       }
     } else if (req.body.splitMode === 'allOrNothing') {
       return res.status(400).send({ message: 'Todo o nada solo se puede elegir al crear el gasto' });
+    }
+
+    if (expense.splitMode === 'roulette' ? updates.some((u) => !['concept', 'amount'].includes(u)) : req.body.splitMode === 'roulette') {
+      return res.status(400).send({ message: 'El reparto de la ruleta no se puede modificar' });
     }
 
     // Si se actualiza el pagador, validar que pertenezca al grupo
