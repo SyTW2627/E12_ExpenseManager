@@ -5,6 +5,7 @@ import { Expense } from '../models/expense.js';
 import { Group } from '../models/group.js';
 import { Payment } from '../models/payment.js';
 import { User } from '../models/user.js';
+import { Notification, type NotificationType } from '../models/notification.js';
 import type { AuthRequest } from '../middlewares/authMiddleware.js';
 import { calculateBalances, simplifyDebts } from '../utils/simplifyDebts.js';
 import { playAllOrNothing, type AllOrNothingResult } from '../utils/allOrNothing.js';
@@ -158,6 +159,40 @@ export const createExpense = async (req: AuthRequest, res: Response) => {
     await expense.save();
     await expense.populate('payerId', 'name email');
     await expense.populate('participants.userId', 'name email');
+
+    const recipientIds = [
+      ...new Set([...group.members.map((m) => m.toString()), group.createdBy.toString()]),
+    ].filter((id) => id !== userId);
+
+    if (recipientIds.length > 0) {
+      const payerName = (expense.payerId as unknown as { name?: string })?.name || 'Un miembro';
+      const formattedAmount = `${Number(expense.amount).toFixed(2).replace('.', ',')} €`;
+      const groupName = group.name || 'el grupo';
+
+      let type: NotificationType = 'expense_created';
+      let message = `${payerName} ha añadido "${expense.concept}" (${formattedAmount}) en ${groupName}.`;
+
+      if (splitMode === 'allOrNothing') {
+        type = 'all_or_nothing';
+        message =
+          allOrNothingResult === 'payerPaysAll'
+            ? `${payerName} jugó a Todo o nada con "${expense.concept}" (${formattedAmount}) en ${groupName} y le tocó pagarlo todo.`
+            : `${payerName} jugó a Todo o nada con "${expense.concept}" (${formattedAmount}) en ${groupName} y se libró de pagar.`;
+      }
+
+      try {
+        await Notification.insertMany(
+          recipientIds.map((recipientId) => ({
+            userId: recipientId,
+            groupId,
+            type,
+            message,
+          }))
+        );
+      } catch {
+        // No bloquear la creación del gasto si falla la generación de notificaciones
+      }
+    }
 
     res.status(201).send(expense);
   } catch (error) {
