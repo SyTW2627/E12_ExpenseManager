@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import './Login.css'
 
-type IconName = 'user' | 'mail' | 'lock' | 'eye' | 'eye-off' | 'arrow' | 'check' | 'users' | 'sparkles' | 'chart' | 'receipt' | 'bell'
+type IconName = 'user' | 'mail' | 'lock' | 'eye' | 'eye-off' | 'arrow' | 'check' | 'users' | 'sparkles' | 'chart' | 'receipt' | 'bell' | 'camera' | 'trash' | 'pencil' | 'close'
 
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
@@ -14,6 +14,10 @@ export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
     check: <path d="m5 12 4 4L19 6" />,
     users: <><circle cx="9" cy="8" r="3" /><path d="M3 20v-2a6 6 0 0 1 12 0v2" /><path d="M17 5.5a3 3 0 0 1 0 5.5M18 14a5 5 0 0 1 3 4.6V20" /></>,
     sparkles: <><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z" /><path d="m19 17 .6 1.4L21 19l-1.4.6L19 21l-.6-1.4L17 19l1.4-.6L19 17Z" /></>,
+    camera: <><path d="M4 8h3l2-3h6l2 3h3v11H4V8Z" /><circle cx="12" cy="13" r="3.5" /></>,
+    pencil: <><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" /><path d="m13.5 6.5 4 4" /></>,
+    close: <><path d="M6 6l12 12" /><path d="M18 6 6 18" /></>,
+    trash: <><path d="M4 7h16" /><path d="M9 7V4h6v3" /><path d="M6 7l1 13h10l1-13" /><path d="M10 11v5M14 11v5" /></>,
     receipt: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" /><path d="M9 8h6M9 12h6M9 16h3" /></>,
     chart: <><rect x="3" y="3" width="18" height="18" rx="4" /><path d="m7 15 3-4 3 2 4-5" /></>,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></>,
