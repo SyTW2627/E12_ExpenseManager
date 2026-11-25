@@ -99,16 +99,18 @@ export const createExpense = async (req: AuthRequest, res: Response) => {
       if (finalPayerId.toString() !== userId) {
         return res.status(403).send({ message: 'Solo quien paga el gasto puede jugar a Todo o nada' });
       }
-      if (participants !== undefined) {
-        return res.status(400).send({ message: 'En Todo o nada los participantes se asignan automáticamente' });
-      }
-
       const memberIds = [...new Set([...group.members.map((m) => m.toString()), group.createdBy.toString()])];
-      if (memberIds.length < 2) {
+      const playerIds = participants === undefined
+        ? memberIds
+        : [...new Set([userId!, ...(Array.isArray(participants) ? participants : []).map((p: { userId: unknown }) => String(p.userId))])];
+      if (playerIds.some((id) => !memberIds.includes(id))) {
+        return res.status(400).send({ message: 'Todos los participantes deben pertenecer al grupo' });
+      }
+      if (playerIds.length < 2) {
         return res.status(400).send({ message: 'Todo o nada necesita al menos dos miembros en el grupo' });
       }
 
-      const outcome = playAllOrNothing(userId!, memberIds);
+      const outcome = playAllOrNothing(userId!, playerIds);
       finalParticipants = outcome.participants;
       allOrNothingResult = outcome.result;
     } else if (!Array.isArray(finalParticipants) || finalParticipants.length === 0) {
