@@ -1,0 +1,78 @@
+.split-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+  text-align: left;
+}
+
+.split-summary__chart {
+  position: relative;
+  flex-shrink: 0;
+  width: 280px;
+  height: 280px;
+}
+
+.split-summary__chart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.split-summary__track,
+.split-summary__segment {
+  fill: none;
+  stroke-width: 6;
+}
+.split-summary__track { stroke: #eceaf8; }
+.split-summary__segment { transition: stroke-dasharray .25s ease, stroke-dashoffset .25s ease; }
+
+.split-summary__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.split-summary__center strong { font-size: 27px; color: #1a2340; font-variant-numeric: tabular-nums; }
+.split-summary__center span { font-size: 13px; color: #69738d; }
+
+.split-summary__details { width: 100%; max-width: 480px; }
+.split-summary__message { text-align: center; }
+
+.split-summary__message {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f0edff;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #3d2f99;
+}
+.split-summary__message.is-warning { background: #fdf3df; color: #8a5a00; }
+
+.split-summary__legend { margin: 0; padding: 0; list-style: none; }
+.split-summary__legend li {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 4px;
+  border-top: 1px solid #eef0f6;
+  font-size: 15px;
+  color: #1a2340;
+}
+.split-summary__legend li:first-child { border-top: 0; }
+.split-summary__dot { width: 12px; height: 12px; border-radius: 50%; }
+.split-summary__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.split-summary__percent { color: #69738d; font-variant-numeric: tabular-nums; }
+.split-summary__amount { min-width: 80px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.split-summary__payer { margin: 14px 0 0; font-size: 14px; line-height: 1.5; color: #69738d; text-align: center; }
+.split-summary__payer strong { color: #1a2340; }
+
+@media (prefers-reduced-motion: reduce) {
+  .split-summary__segment { transition: none; }
+}

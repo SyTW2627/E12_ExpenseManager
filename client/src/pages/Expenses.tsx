@@ -6,6 +6,7 @@ import { clearCreateStatus, createExpense, type SplitMode } from '../store/slice
 import RouletteWheel from './RouletteWheel'
 import { rotationToLand, type RouletteCandidate } from '../utils/roulette'
 import CoinFlip from './CoinFlip'
+import SplitSummary from './SplitSummary'
 import { coinRotationToLand, type AllOrNothingResult } from '../utils/allOrNothing'
 import './Expenses.css'
 
@@ -28,6 +29,8 @@ const prefersReducedMotion = () =>
 
 // Mismo redondeo que el backend para el reparto equitativo
 const equalShare = (count: number) => Math.round((100 / count) * 100) / 100
+
+const SHARE_COLORS = ['#7661d7', '#1baf7a', '#eb6834', '#2a78d6', '#eda100', '#e87ba4', '#008300', '#e34948']
 
 const formatMoney = (value: number) =>
   value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
@@ -107,6 +110,13 @@ export default function Expenses() {
       : splitMode === 'percentage'
         ? Number(percentages[id]) || 0
         : 0
+
+  const memberColor = (id: string) => SHARE_COLORS[Math.max(memberIds.indexOf(id), 0) % SHARE_COLORS.length]!
+  const displayName = (m: GroupMember) => (m._id === currentUserId ? `${m.name} (tú)` : m.name)
+  const payer = members.find((m) => m._id === payerId)
+  const summarySlices = members
+    .filter((m) => selected.includes(m._id))
+    .map((m) => ({ id: m._id, name: displayName(m), share: shareFor(m._id), color: memberColor(m._id) }))
 
   const liveCandidates: RouletteCandidate[] = members
     .filter((m) => selected.includes(m._id))
@@ -199,16 +209,16 @@ export default function Expenses() {
           <p>Únete a un grupo desde "Mis grupos" para empezar a registrar gastos.</p>
         </div>
       ) : (
-        <form className="expense-form" onSubmit={handleSubmit} noValidate>
-          <header className="expense-form__header">
-            <span className="expense-form__icon" aria-hidden="true"><Icon name="receipt" size={22} /></span>
-            <div>
-              <h2>Nuevo gasto</h2>
-              <p>Registra lo que has pagado y cómo se reparte.</p>
-            </div>
-          </header>
+        <form className="expense-layout" onSubmit={handleSubmit} noValidate>
+          <section className="expense-card expense-details" aria-labelledby="expense-details-title">
+            <header className="expense-card__header">
+              <span className="expense-card__icon" aria-hidden="true"><Icon name="receipt" size={22} /></span>
+              <div>
+                <h2 id="expense-details-title">Nuevo gasto</h2>
+                <p>Registra lo que has pagado y cómo se reparte.</p>
+              </div>
+            </header>
 
-          <div className="expense-form__grid">
             <div className="expense-field">
               <label htmlFor="expense-group">Grupo</label>
               <select id="expense-group" value={groupId} onChange={(e) => selectGroup(e.target.value)} disabled={creating}>
@@ -217,15 +227,6 @@ export default function Expenses() {
             </div>
 
             <div className="expense-field">
-              <label htmlFor="expense-payer">Pagado por</label>
-              <select id="expense-payer" value={payerId} onChange={(e) => { setChosenPayerId(e.target.value); resetFeedback() }} disabled={creating || isAllOrNothing}>
-                {members.map((m) => (
-                  <option key={m._id} value={m._id}>{m._id === currentUserId ? `${m.name} (tú)` : m.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="expense-field expense-field--wide">
               <label htmlFor="expense-concept">Concepto</label>
               <input
                 id="expense-concept"
@@ -238,19 +239,30 @@ export default function Expenses() {
               />
             </div>
 
-            <div className="expense-field">
-              <label htmlFor="expense-amount">Importe</label>
-              <div className="expense-amount">
-                <input
-                  id="expense-amount"
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0,00"
-                  value={amount}
-                  onChange={(e) => { setAmount(e.target.value.replace(/[^\d.,]/g, '')); resetFeedback() }}
-                  disabled={creating}
-                />
-                <span aria-hidden="true">€</span>
+            <div className="expense-details__row">
+              <div className="expense-field">
+                <label htmlFor="expense-amount">Importe</label>
+                <div className="expense-amount">
+                  <input
+                    id="expense-amount"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    value={amount}
+                    onChange={(e) => { setAmount(e.target.value.replace(/[^\d.,]/g, '')); resetFeedback() }}
+                    disabled={creating}
+                  />
+                  <span aria-hidden="true">€</span>
+                </div>
+              </div>
+
+              <div className="expense-field">
+                <label htmlFor="expense-payer">Pagado por</label>
+                <select id="expense-payer" value={payerId} onChange={(e) => { setChosenPayerId(e.target.value); resetFeedback() }} disabled={creating || isAllOrNothing}>
+                  {members.map((m) => (
+                    <option key={m._id} value={m._id}>{m._id === currentUserId ? `${m.name} (tú)` : m.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -272,118 +284,151 @@ export default function Expenses() {
                 ))}
               </div>
             </fieldset>
-          </div>
 
-          <fieldset className="expense-participants">
-            <legend>
-              Participantes
+            <div className="expense-participants__head">
+              <span>Participantes</span>
               {splitMode === 'percentage' && selected.length > 0 && (
                 <span className={`expense-participants__total${Math.abs(percentageTotal - 100) <= 0.1 ? ' is-ok' : ''}`}>
                   Total: {percentageTotal}%
                 </span>
               )}
-            </legend>
+            </div>
+            <fieldset className="expense-participants">
+              <legend className="expense-sr-only">Participantes</legend>
+              <ul>
+                {members.map((m) => {
+                  const locked = isAllOrNothing && m._id === currentUserId
+                  const checked = locked || selected.includes(m._id)
+                  const share = checked ? shareFor(m._id) : 0
+                  const showsShare = checked && (splitMode === 'equal' || splitMode === 'percentage')
+                  return (
+                    <li key={m._id} className={`expense-participant${checked ? ' is-checked' : ''}`}>
+                      <label className="expense-participant__name">
+                        <input type="checkbox" checked={checked} onChange={() => toggleParticipant(m._id)} disabled={creating || locked} />
+                        {m._id === currentUserId ? `${m.name} (tú)` : m.name}
+                      </label>
 
-            <ul>
-              {members.map((m) => {
-                const locked = isAllOrNothing && m._id === currentUserId
-                const checked = locked || selected.includes(m._id)
-                const share = checked ? shareFor(m._id) : 0
-                return (
-                  <li key={m._id} className={`expense-participant${checked ? ' is-checked' : ''}`}>
-                    <label className="expense-participant__name">
-                      <input type="checkbox" checked={checked} onChange={() => toggleParticipant(m._id)} disabled={creating || locked} />
-                      {m._id === currentUserId ? `${m.name} (tú)` : m.name}
-                    </label>
+                      {checked && splitMode === 'percentage' && (
+                        <div className="expense-participant__percent">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            inputMode="decimal"
+                            aria-label={`Porcentaje de ${m.name}`}
+                            value={percentages[m._id] ?? ''}
+                            onChange={(e) => { setPercentages((p) => ({ ...p, [m._id]: e.target.value })); resetFeedback() }}
+                            disabled={creating}
+                          />
+                          <span aria-hidden="true">%</span>
+                        </div>
+                      )}
 
-                    {checked && splitMode === 'percentage' && (
-                      <div className="expense-participant__percent">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          inputMode="decimal"
-                          aria-label={`Porcentaje de ${m.name}`}
-                          value={percentages[m._id] ?? ''}
-                          onChange={(e) => { setPercentages((p) => ({ ...p, [m._id]: e.target.value })); resetFeedback() }}
-                          disabled={creating}
-                        />
-                        <span aria-hidden="true">%</span>
-                      </div>
-                    )}
+                      <span className="expense-participant__amount">
+                        {checked && (splitMode === 'roulette' || isAllOrNothing)
+                          ? '¿?'
+                          : checked && amountValue > 0
+                            ? formatMoney((amountValue * share) / 100)
+                            : '—'}
+                      </span>
 
-                    <span className="expense-participant__amount">
-                      {checked && (splitMode === 'roulette' || isAllOrNothing)
-                        ? '¿?'
-                        : checked && amountValue > 0
-                          ? formatMoney((amountValue * share) / 100)
-                          : '—'}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          </fieldset>
+                      {showsShare && (
+                        <span className="expense-participant__bar" aria-hidden="true">
+                          <span style={{ width: `${Math.min(share, 100)}%`, background: memberColor(m._id) }} />
+                        </span>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </fieldset>
 
-          {(splitMode === 'roulette' || spin) && (
-            <section className="expense-roulette" aria-label="Ruleta">
-              <p className="expense-roulette__intro">
-                La ruleta elige al azar a una sola persona de los participantes, que asumirá el gasto completo.
+            <div className="expense-actions">
+              {activeError && <p className="expense-feedback expense-feedback--error" role="alert">{activeError}</p>}
+              {createMessage && !isSpinning && (
+                <p className="expense-feedback expense-feedback--success" role="status">{createMessage}</p>
+              )}
+
+              <button className="expense-submit" type="submit" disabled={creating || isSpinning}>
+                {creating
+                  ? 'Guardando...'
+                  : toss?.flipping
+                    ? 'Lanzando la moneda...'
+                    : isSpinning
+                      ? 'Girando la ruleta...'
+                      : splitMode === 'roulette'
+                        ? 'Girar la ruleta y añadir gasto'
+                        : isAllOrNothing
+                          ? 'Lanzar la moneda y añadir gasto'
+                          : 'Añadir gasto'}
+              </button>
+            </div>
+          </section>
+
+          <section className="expense-card expense-distribution" aria-labelledby="expense-distribution-title">
+            <header className="expense-distribution__header">
+              <h2 id="expense-distribution-title">Cómo se reparte</h2>
+              <p>
+                {amountValue > 0 ? formatMoney(amountValue) : 'El importe'} entre {selected.length}{' '}
+                {selected.length === 1 ? 'persona' : 'personas'} de {group?.name}
               </p>
-              <RouletteWheel
-                candidates={wheelCandidates}
-                rotation={rouletteRotation}
-                spinning={isSpinning}
-                onSpinEnd={finishSpin}
-              />
-              <p className="expense-roulette__result" role="status" aria-live="polite">
-                {isSpinning
-                  ? 'Girando...'
-                  : spin
-                    ? <>Le ha tocado a <strong>{spin.winner.name}</strong>: asume {formatMoney(spin.amount)}.</>
-                    : ''}
-              </p>
-            </section>
-          )}
+            </header>
 
-          {(isAllOrNothing || toss) && (
-            <section className="expense-roulette" aria-label="Todo o nada">
-              <p className="expense-roulette__intro">
-                Lanza la moneda: con cara pagas tú todo el gasto; con cruz se lo reparten a partes iguales los demás
-                participantes que hayas elegido.
-              </p>
-              <CoinFlip rotation={coinRotation} flipping={toss?.flipping ?? false} onFlipEnd={finishFlip} />
-              <p className="expense-roulette__result" role="status" aria-live="polite">
-                {toss?.flipping
-                  ? 'Lanzando la moneda...'
-                  : toss?.result === 'payerPaysAll'
-                    ? <>¡Cara! <strong>Pagas tú</strong> los {formatMoney(toss.amount)}.</>
-                    : toss
-                      ? <>¡Cruz! <strong>Los otros {toss.othersCount}</strong> se reparten {formatMoney(toss.amount)}.</>
+            {(splitMode === 'equal' || splitMode === 'percentage') && !spin && !toss && (
+              <section className="expense-game" aria-label="Resumen del reparto">
+                <SplitSummary
+                  mode={splitMode}
+                  slices={summarySlices}
+                  amount={amountValue > 0 ? amountValue : 0}
+                  payerId={payerId}
+                  payerName={payer ? displayName(payer) : ''}
+                  percentageTotal={percentageTotal}
+                  formatMoney={formatMoney}
+                />
+              </section>
+            )}
+
+            {(splitMode === 'roulette' || spin) && (
+              <section className="expense-game" aria-label="Ruleta">
+                <p className="expense-game__intro">
+                  La ruleta elige al azar a una sola persona de los participantes, que asumirá el gasto completo.
+                </p>
+                <RouletteWheel
+                  candidates={wheelCandidates}
+                  rotation={rouletteRotation}
+                  spinning={isSpinning}
+                  onSpinEnd={finishSpin}
+                />
+                <p className="expense-game__result" role="status" aria-live="polite">
+                  {isSpinning
+                    ? 'Girando...'
+                    : spin
+                      ? <>Le ha tocado a <strong>{spin.winner.name}</strong>: asume {formatMoney(spin.amount)}.</>
                       : ''}
-              </p>
-            </section>
-          )}
+                </p>
+              </section>
+            )}
 
-          {activeError && <p className="expense-feedback expense-feedback--error" role="alert">{activeError}</p>}
-          {createMessage && !isSpinning && (
-            <p className="expense-feedback expense-feedback--success" role="status">{createMessage}</p>
-          )}
-
-          <button className="expense-submit" type="submit" disabled={creating || isSpinning}>
-            {creating
-              ? 'Guardando...'
-              : toss?.flipping
-                ? 'Lanzando la moneda...'
-                : isSpinning
-                  ? 'Girando la ruleta...'
-                  : splitMode === 'roulette'
-                    ? 'Girar la ruleta y añadir gasto'
-                    : isAllOrNothing
-                      ? 'Lanzar la moneda y añadir gasto'
-                      : 'Añadir gasto'}
-          </button>
+            {(isAllOrNothing || toss) && (
+              <section className="expense-game" aria-label="Todo o nada">
+                <p className="expense-game__intro">
+                  Lanza la moneda: con cara pagas tú todo el gasto; con cruz se lo reparten a partes iguales los demás
+                  participantes que hayas elegido.
+                </p>
+                <CoinFlip rotation={coinRotation} flipping={toss?.flipping ?? false} onFlipEnd={finishFlip} />
+                <p className="expense-game__result" role="status" aria-live="polite">
+                  {toss?.flipping
+                    ? 'Lanzando la moneda...'
+                    : toss?.result === 'payerPaysAll'
+                      ? <>¡Cara! <strong>Pagas tú</strong> los {formatMoney(toss.amount)}.</>
+                      : toss
+                        ? <>¡Cruz! <strong>Los otros {toss.othersCount}</strong> se reparten {formatMoney(toss.amount)}.</>
+                        : ''}
+                </p>
+              </section>
+            )}
+          </section>
         </form>
       )}
     </section>
