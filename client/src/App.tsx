@@ -6,9 +6,9 @@ import Register from './pages/Register'
 
 // Redux controla el acceso; las rutas solo deciden qué sección se muestra.
 const currentPath = () => window.location.pathname.replace(/\/+$/, '') || '/'
-const privatePaths = ['/dashboard', '/grupos', '/gastos', '/notificaciones']
+const privatePaths = ['/dashboard', '/grupos', '/gastos']
 
-type PrivatePath = '/dashboard' | '/grupos' | '/gastos' | '/notificaciones'
+type PrivatePath = '/dashboard' | '/grupos' | '/gastos'
 
 const groupPathPattern = /^\/grupos\/([^/]+)$/
 const groupIdFromPath = (path: string) => groupPathPattern.exec(path)?.[1]
@@ -18,13 +18,11 @@ const sectionByPath = {
   '/dashboard': 'home',
   '/grupos': 'groups',
   '/gastos': 'expenses',
-  '/notificaciones': 'notifications',
 } as const
 const pathBySection = {
   home: '/dashboard',
   groups: '/grupos',
   expenses: '/gastos',
-  notifications: '/notificaciones',
 } as const
 
 function App() {
@@ -62,9 +60,7 @@ function App() {
           ? 'Grupo'
           : path === '/gastos'
             ? 'Gastos'
-            : path === '/notificaciones'
-              ? 'Notificaciones'
-              : 'Inicio'
+            : 'Inicio'
       : path === '/register' ? 'Crear cuenta' : 'Iniciar sesión'
 
     document.title = `${pageTitle} | Cuentas Claras`

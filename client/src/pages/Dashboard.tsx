@@ -5,11 +5,10 @@ import { logout } from '../store/slices/authSlice'
 import { fetchNotifications } from '../store/slices/notificationsSlice'
 import Groups from './Groups'
 import Expenses from './Expenses'
-import Notifications from './Notifications'
 import Home from './Home'
 import './Dashboard.css'
 
-type Section = 'home' | 'groups' | 'expenses' | 'notifications'
+type Section = 'home' | 'groups' | 'expenses'
 
 interface DashboardProps {
   section: Section
@@ -22,8 +21,6 @@ export default function Dashboard({ section, groupId, onNavigate, onOpenGroup }:
   const dispatch = useAppDispatch()
   const user = useAppSelector((state) => state.auth.user)
   const token = useAppSelector((state) => state.auth.token)
-  const notifications = useAppSelector((state) => state.notifications.items)
-  const unreadCount = notifications.filter((n) => !n.read).length
   const firstName = user?.name?.trim().split(/\s+/)[0] || 'usuario'
 
   useEffect(() => {
@@ -67,19 +64,6 @@ export default function Dashboard({ section, groupId, onNavigate, onOpenGroup }:
           >
             <Icon name="receipt" size={19} /> Gastos
           </a>
-          <a
-            href="/notificaciones"
-            className={`dashboard-nav__link${section === 'notifications' ? ' dashboard-nav__link--active' : ''}`}
-            aria-current={section === 'notifications' ? 'page' : undefined}
-            onClick={(event) => { event.preventDefault(); onNavigate('notifications') }}
-          >
-            <Icon name="bell" size={19} /> Notificaciones
-            {unreadCount > 0 && (
-              <span className="dashboard-nav__badge" aria-label={`${unreadCount} sin leer`}>
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-          </a>
         </nav>
 
         <button className="dashboard-logout" type="button" onClick={() => dispatch(logout())}>
@@ -91,10 +75,8 @@ export default function Dashboard({ section, groupId, onNavigate, onOpenGroup }:
         <Groups groupId={groupId} onOpenGroup={onOpenGroup} onCloseGroup={() => onNavigate('groups')} />
       ) : section === 'expenses' ? (
         <Expenses />
-      ) : section === 'notifications' ? (
-        <Notifications onOpenGroup={onOpenGroup} />
       ) : (
-        <Home firstName={firstName} />
+        <Home firstName={firstName} onOpenGroup={onOpenGroup} />
       )}
     </main>
   )

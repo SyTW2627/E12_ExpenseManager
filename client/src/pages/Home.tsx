@@ -1,7 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Icon } from './AuthVisual'
 import { useAppDispatch, useAppSelector } from '../store'
 import { clearProfileFeedback, deleteAccount, logout, updateProfile } from '../store/slices/authSlice'
+import NotificationsPanel from './Notifications'
 import './Home.css'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -201,10 +202,76 @@ function ProfilePanel() {
   )
 }
 
-export default function Home({ firstName }: { firstName: string }) {
+function NotificationsMenu({ onOpenGroup }: { onOpenGroup: (groupId: string) => void }) {
+  const unreadCount = useAppSelector((state) => state.notifications.items.filter((n) => !n.read).length)
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  const close = () => {
+    setOpen(false)
+    buttonRef.current?.focus()
+  }
+
+  // Se cierra al hacer clic fuera o al pulsar Escape
+  useEffect(() => {
+    if (!open) return
+    const handlePointer = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false)
+        buttonRef.current?.focus()
+      }
+    }
+    document.addEventListener('mousedown', handlePointer)
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handlePointer)
+      document.removeEventListener('keydown', handleKey)
+    }
+  }, [open])
+
+  return (
+    <div className="home-notifications" ref={containerRef}>
+      <button
+        ref={buttonRef}
+        type="button"
+        className={`home-notifications__button${open ? ' is-open' : ''}`}
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        aria-controls="home-notifications-panel"
+      >
+        <Icon name="bell" size={18} /> Notificaciones
+        {unreadCount > 0 && (
+          <span className="home-notifications__badge" aria-label={`${unreadCount} sin leer`}>
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="home-notifications__dropdown">
+          <NotificationsPanel id="home-notifications-panel" onOpenGroup={onOpenGroup} onClose={close} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface HomeProps {
+  firstName: string
+  onOpenGroup: (groupId: string) => void
+}
+
+export default function Home({ firstName, onOpenGroup }: HomeProps) {
   return (
     <section className="dashboard-content" aria-labelledby="home-title">
-      <h1 id="home-title">Hola, {firstName}</h1>
+      <header className="home-header">
+        <h1 id="home-title">Hola, {firstName}</h1>
+        <NotificationsMenu onOpenGroup={onOpenGroup} />
+      </header>
 
       <div className="home-layout">
         <ProfilePanel />
