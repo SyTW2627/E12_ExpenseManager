@@ -1,6 +1,7 @@
 # E12_ExpenseManager
 
 [![Server Test Coverage](https://github.com/SyTW2627/E12_ExpenseManager/actions/workflows/coverage.yml/badge.svg?branch=test)](https://github.com/SyTW2627/E12_ExpenseManager/actions/workflows/coverage.yml)
+[![Coverage Status](https://coveralls.io/repos/github/SyTW2627/E12_ExpenseManager/badge.svg?branch=test)](https://coveralls.io/github/SyTW2627/E12_ExpenseManager?branch=test)
 [![Playwright E2E Tests](https://github.com/SyTW2627/E12_ExpenseManager/actions/workflows/playwright.yml/badge.svg?branch=test)](https://github.com/SyTW2627/E12_ExpenseManager/actions/workflows/playwright.yml)
 
 ![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white)
@@ -26,7 +27,7 @@ Se trata de una aplicación web full-stack orientada a la gestión, reparto e in
 - `client`:
 
 1. Instalar las dependencias con `npm install`
-2. Arrancar el servidor con el comando `npm run dev -- --host 0.0.0.0 `
+2. Arrancar el servidor con el comando `npm run dev`
 
 - `server` :
 
